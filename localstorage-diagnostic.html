@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalStorage 数据诊断工具</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+        }
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        .btn-primary {
+            background-color: #007bff;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            max-height: 300px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .log-container {
+            max-height: 400px;
+            overflow-y: auto;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .log-entry {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            padding: 4px;
+            border-bottom: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 LocalStorage 数据诊断工具</h1>
+
+    <div class="section">
+        <h2>1. 存储状态检查</h2>
+        <button onclick="checkStorageStatus()">检查存储状态</button>
+        <button onclick="clearAllData()" class="btn-danger">清空所有数据</button>
+        <div id="storage-status"></div>
+    </div>
+
+    <div class="section">
+        <h2>2. 用户数据检查</h2>
+        <button onclick="checkUserData()">检查用户数据</button>
+        <button onclick="createAdminUser()" class="btn-primary">创建管理员账户</button>
+        <div id="user-data"></div>
+    </div>
+
+    <div class="section">
+        <h2>3. 数据集检查</h2>
+        <button onclick="checkDataSets()">检查数据集</button>
+        <div id="data-sets"></div>
+    </div>
+
+    <div class="section">
+        <h2>4. 数据恢复工具</h2>
+        <button onclick="restoreDefaultData()" class="btn-primary">恢复默认数据</button>
+        <button onclick="exportData()">导出数据</button>
+        <button onclick="importData()" class="btn-primary">导入数据</button>
+        <input type="file" id="data-file" style="display: none;">
+        <div id="restore-status"></div>
+    </div>
+
+    <div class="section">
+        <h2>5. 操作日志</h2>
+        <button onclick="clearLogs()">清空日志</button>
+        <div id="log-container" class="log-container"></div>
+    </div>
+
+    <script>
+        const logs = [];
+
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleString();
+            const logEntry = { timestamp, message, type };
+            logs.unshift(logEntry);
+
+            const logContainer = document.getElementById('log-container');
+            const logDiv = document.createElement('div');
+            logDiv.className = 'log-entry';
+            logDiv.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            logDiv.style.borderLeft = `3px solid ${
+                type === 'success' ? '#4CAF50' :
+                type === 'error' ? '#dc3545' :
+                type === 'warning' ? '#ffc107' : '#17a2b8'
+            }`;
+            logContainer.insertBefore(logDiv, logContainer.firstChild);
+
+            if (logs.length > 100) {
+                logs.pop();
+            }
+        }
+
+        function clearLogs() {
+            logs.length = 0;
+            document.getElementById('log-container').innerHTML = '';
+            addLog('日志已清空', 'info');
+        }
+
+        function displayResult(containerId, html, type = 'info') {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `<div class="status ${type}">${html}</div>`;
+        }
+
+        // 1. 检查存储状态
+        function checkStorageStatus() {
+            addLog('开始检查存储状态...', 'info');
+
+            try {
+                const isAvailable = typeof localStorage !== 'undefined';
+                const canWrite = (() => {
+                    try {
+                        localStorage.setItem('__test__', 'test');
+                        localStorage.removeItem('__test__');
+                        return true;
+                    } catch (e) {
+                        return false;
+                    }
+                })();
+
+                let totalSize = 0;
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    const value = localStorage.getItem(key);
+                    totalSize += (key.length + value.length) * 2;
+                }
+
+                const maxSize = 5 * 1024 * 1024;
+                const usagePercent = (totalSize / maxSize * 100).toFixed(2);
+
+                const storageItems = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    const value = localStorage.getItem(key);
+                    storageItems.push({
+                        key,
+                        size: (value.length * 2).toFixed(2),
+                        sizeKB: (value.length * 2 / 1024).toFixed(2)
+                    });
+                }
+
+                let html = `
+                    <h3>LocalStorage 状态</h3>
+                    <ul>
+                        <li>可用: <strong>${isAvailable && canWrite ? '✅' : '❌'}</strong></li>
+                        <li>存储项数量: <strong>${localStorage.length}</strong></li>
+                        <li>已使用空间: <strong>${(totalSize / 1024 / 1024).toFixed(2)} MB</strong></li>
+                        <li>总空间限制: <strong>5 MB</strong></li>
+                        <li>使用率: <strong>${usagePercent}%</strong></li>
+                    </ul>
+                `;
+
+                if (storageItems.length > 0) {
+                    html += `
+                        <h4>存储的键值对:</h4>
+                        <table>
+                            <thead>
+                                <tr><th>键</th><th>大小 (字节)</th><th>大小 (KB)</th></tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    storageItems.forEach(item => {
+                        html += `<tr><td>${item.key}</td><td>${item.size}</td><td>${item.sizeKB}</td></tr>`;
+                    });
+                    html += `</tbody></table>`;
+                }
+
+                displayResult('storage-status', html, isAvailable && canWrite ? 'success' : 'error');
+                addLog(`存储状态检查完成: ${isAvailable && canWrite ? '正常' : '异常'}`, isAvailable && canWrite ? 'success' : 'error');
+
+            } catch (error) {
+                displayResult('storage-status', `<h3>❌ 检查失败</h3><p>${error.message}</p>`, 'error');
+                addLog(`存储状态检查失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 2. 检查用户数据
+        function checkUserData() {
+            addLog('开始检查用户数据...', 'info');
+
+            try {
+                const savedUsers = localStorage.getItem('users');
+
+                if (!savedUsers) {
+                    displayResult('user-data', `
+                        <h3>❌ 用户数据不存在</h3>
+                        <p>LocalStorage 中没有用户数据</p>
+                        <p>建议点击"创建管理员账户"按钮来初始化数据</p>
+                    `, 'error');
+                    addLog('用户数据不存在', 'error');
+                    return;
+                }
+
+                const users = JSON.parse(savedUsers);
+
+                if (!Array.isArray(users) || users.length === 0) {
+                    displayResult('user-data', `
+                        <h3>❌ 用户数据为空</h3>
+                        <p>用户数组为空或格式错误</p>
+                        <p>建议点击"创建管理员账户"按钮来初始化数据</p>
+                    `, 'error');
+                    addLog('用户数据为空', 'error');
+                    return;
+                }
+
+                let html = `
+                    <h3>✅ 用户数据存在</h3>
+                    <p>共 ${users.length} 个用户</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>用户名</th>
+                                <th>角色</th>
+                                <th>状态</th>
+                                <th>创建时间</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                users.forEach(user => {
+                    html += `
+                        <tr>
+                            <td>${user.id}</td>
+                            <td>${user.username}</td>
+                            <td>${user.role}</td>
+                            <td>${user.enabled ? '✅ 启用' : '❌ 禁用'}</td>
+                            <td>${new Date(user.createdAt).toLocaleString()}</td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                        </tbody>
+                    </table>
+                    <pre>${JSON.stringify(users, null, 2)}</pre>
+                `;
+
+                displayResult('user-data', html, 'success');
+                addLog(`用户数据检查完成: ${users.length} 个用户`, 'success');
+
+            } catch (error) {
+                displayResult('user-data', `<h3>❌ 检查失败</h3><p>${error.message}</p>`, 'error');
+                addLog(`用户数据检查失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 3. 创建管理员账户
+        function createAdminUser() {
+            addLog('开始创建管理员账户...', 'info');
+
+            try {
+                const adminUser = [{
+                    id: '1',
+                    username: 'admin',
+                    password: 'password',
+                    role: 'admin',
+                    enabled: true,
+                    createdAt: new Date().toISOString()
+                }];
+
+                localStorage.setItem('users', JSON.stringify(adminUser));
+
+                // 验证创建结果
+                const savedUsers = localStorage.getItem('users');
+                const users = JSON.parse(savedUsers);
+
+                if (users && users.length > 0 && users[0].username === 'admin') {
+                    displayResult('user-data', `
+                        <h3>✅ 管理员账户创建成功</h3>
+                        <p>用户名: admin</p>
+                        <p>密码: password</p>
+                        <p>角色: admin</p>
+                    `, 'success');
+                    addLog('管理员账户创建成功', 'success');
+                } else {
+                    displayResult('user-data', `<h3>❌ 管理员账户创建失败</h3>`, 'error');
+                    addLog('管理员账户创建失败', 'error');
+                }
+
+            } catch (error) {
+                displayResult('user-data', `<h3>❌ 创建失败</h3><p>${error.message}</p>`, 'error');
+                addLog(`创建管理员账户失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 4. 检查数据集
+        function checkDataSets() {
+            addLog('开始检查数据集...', 'info');
+
+            try {
+                const savedDataSets = localStorage.getItem('dataSets');
+
+                if (!savedDataSets) {
+                    displayResult('data-sets', `
+                        <h3>⚠️ 数据集不存在</h3>
+                        <p>LocalStorage 中没有数据集</p>
+                        <p>需要通过上传Excel文件来创建数据集</p>
+                    `, 'info');
+                    addLog('数据集不存在', 'info');
+                    return;
+                }
+
+                const dataSets = JSON.parse(savedDataSets);
+
+                if (!Array.isArray(dataSets) || dataSets.length === 0) {
+                    displayResult('data-sets', `
+                        <h3>⚠️ 数据集为空</h3>
+                        <p>数据集数组为空或格式错误</p>
+                        <p>需要通过上传Excel文件来创建数据集</p>
+                    `, 'info');
+                    addLog('数据集为空', 'info');
+                    return;
+                }
+
+                let html = `
+                    <h3>✅ 数据集存在</h3>
+                    <p>共 ${dataSets.length} 个数据集</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>名称</th>
+                                <th>记录数</th>
+                                <th>创建时间</th>
+                                <th>更新时间</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                dataSets.forEach(dataSet => {
+                    html += `
+                        <tr>
+                            <td>${dataSet.id}</td>
+                            <td>${dataSet.name}</td>
+                            <td>${dataSet.count}</td>
+                            <td>${new Date(dataSet.createdAt).toLocaleString()}</td>
+                            <td>${dataSet.updatedAt ? new Date(dataSet.updatedAt).toLocaleString() : '-'}</td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                        </tbody>
+                    </table>
+                `;
+
+                displayResult('data-sets', html, 'success');
+                addLog(`数据集检查完成: ${dataSets.length} 个数据集`, 'success');
+
+            } catch (error) {
+                displayResult('data-sets', `<h3>❌ 检查失败</h3><p>${error.message}</p>`, 'error');
+                addLog(`数据集检查失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 5. 恢复默认数据
+        function restoreDefaultData() {
+            if (!confirm('确定要恢复默认数据吗？这将清空所有现有数据！')) {
+                return;
+            }
+
+            addLog('开始恢复默认数据...', 'warning');
+
+            try {
+                // 清空所有数据
+                localStorage.clear();
+
+                // 创建默认管理员
+                const defaultAdmin = [{
+                    id: '1',
+                    username: 'admin',
+                    password: 'password',
+                    role: 'admin',
+                    enabled: true,
+                    createdAt: new Date().toISOString()
+                }];
+                localStorage.setItem('users', JSON.stringify(defaultAdmin));
+
+                // 创建空数据集
+                localStorage.setItem('dataSets', JSON.stringify([]));
+                localStorage.setItem('currentDataSetId', '');
+
+                displayResult('restore-status', `
+                    <h3>✅ 默认数据恢复成功</h3>
+                    <p>已创建默认管理员账户</p>
+                    <p>用户名: admin</p>
+                    <p>密码: password</p>
+                `, 'success');
+                addLog('默认数据恢复成功', 'success');
+
+                // 重新检查状态
+                checkStorageStatus();
+                checkUserData();
+                checkDataSets();
+
+            } catch (error) {
+                displayResult('restore-status', `<h3>❌ 恢复失败</h3><p>${error.message}</p>`, 'error');
+                addLog(`恢复默认数据失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 6. 导出数据
+        function exportData() {
+            addLog('开始导出数据...', 'info');
+
+            try {
+                const exportData = {
+                    users: JSON.parse(localStorage.getItem('users') || '[]'),
+                    dataSets: JSON.parse(localStorage.getItem('dataSets') || '[]'),
+                    currentDataSetId: localStorage.getItem('currentDataSetId') || '',
+                    filters: JSON.parse(localStorage.getItem('filters') || '{}'),
+                    exportTime: new Date().toISOString()
+                };
+
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `localstorage-backup-${new Date().toISOString().slice(0, 10)}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+
+                displayResult('restore-status', `<h3>✅ 数据导出成功</h3>`, 'success');
+                addLog('数据导出成功', 'success');
+
+            } catch (error) {
+                displayResult('restore-status', `<h3>❌ 导出失败</h3><p>${error.message}</p>`, 'error');
+                addLog(`数据导出失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 7. 导入数据
+        function importData() {
+            document.getElementById('data-file').click();
+        }
+
+        // 处理文件导入
+        document.getElementById('data-file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            addLog('开始导入数据...', 'info');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+
+                    // 验证数据格式
+                    if (data.users) {
+                        localStorage.setItem('users', JSON.stringify(data.users));
+                    }
+                    if (data.dataSets) {
+                        localStorage.setItem('dataSets', JSON.stringify(data.dataSets));
+                    }
+                    if (data.currentDataSetId) {
+                        localStorage.setItem('currentDataSetId', data.currentDataSetId);
+                    }
+                    if (data.filters) {
+                        localStorage.setItem('filters', JSON.stringify(data.filters));
+                    }
+
+                    displayResult('restore-status', `<h3>✅ 数据导入成功</h3>`, 'success');
+                    addLog('数据导入成功', 'success');
+
+                    // 重新检查状态
+                    checkStorageStatus();
+                    checkUserData();
+                    checkDataSets();
+
+                } catch (error) {
+                    displayResult('restore-status', `<h3>❌ 导入失败</h3><p>${error.message}</p>`, 'error');
+                    addLog(`数据导入失败: ${error.message}`, 'error');
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // 8. 清空所有数据
+        function clearAllData() {
+            if (!confirm('确定要清空所有LocalStorage数据吗？这将删除所有用户和数据集！')) {
+                return;
+            }
+
+            addLog('开始清空所有数据...', 'warning');
+
+            try {
+                localStorage.clear();
+                displayResult('storage-status', `<h3>✅ 所有数据已清空</h3>`, 'success');
+                addLog('所有数据已清空', 'success');
+
+                // 重新检查状态
+                checkStorageStatus();
+                checkUserData();
+                checkDataSets();
+
+            } catch (error) {
+                displayResult('storage-status', `<h3>❌ 清空失败</h3><p>${error.message}</p>`, 'error');
+                addLog(`清空数据失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载时自动检查
+        window.addEventListener('load', () => {
+            addLog('页面加载完成，开始自动检查...', 'info');
+            checkStorageStatus();
+            checkUserData();
+            checkDataSets();
+        });
+    </script>
+</body>
+</html>

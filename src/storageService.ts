@@ -38,8 +38,28 @@ export interface DataSet {
   certificateOptions: string[];
 }
 
-// API基础URL
-const API_BASE_URL = 'http://localhost:3001/api';
+// API基础URL - 支持本地开发和云部署
+const getApiBaseUrl = () => {
+  // 优先使用环境变量
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // 如果是生产环境（GitHub Pages/Vercel），使用相对路径或配置的 URL
+  const isProduction = window.location.hostname !== 'localhost' && 
+                       window.location.hostname !== '127.0.0.1';
+  
+  if (isProduction) {
+    // 在生产环境中，API 应该部署在同一个域名下，或者使用配置的 URL
+    // 这里假设 API 部署在 Render 上，URL 会在 .env 中配置
+    return import.meta.env.VITE_API_URL || 'https://your-api.onrender.com/api';
+  }
+  
+  // 本地开发环境
+  return 'http://localhost:3001/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // snake_case 转 camelCase
 function toCamelCase(obj: any): any {

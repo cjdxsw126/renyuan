@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalStorage 功能诊断测试</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+        }
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        .btn-primary {
+            background-color: #007bff;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            max-height: 300px;
+            font-size: 12px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .log-container {
+            max-height: 400px;
+            overflow-y: auto;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .log-entry {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            padding: 4px;
+            border-bottom: 1px solid #eee;
+        }
+        .log-timestamp {
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 LocalStorage 功能诊断测试</h1>
+
+    <div class="test-section">
+        <h2>1. LocalStorage 可用性检测</h2>
+        <button onclick="testLocalStorageAvailability()">检测 LocalStorage</button>
+        <div id="availability-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. 数据存储基本测试</h2>
+        <button onclick="testBasicStorage()">测试基本存储</button>
+        <button onclick="testLargeDataStorage()">测试大数据存储</button>
+        <button onclick="clearAllData()" class="btn-danger">清空所有数据</button>
+        <div id="storage-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. 用户数据存储测试</h2>
+        <div>
+            <h3>创建测试用户</h3>
+            <input type="text" id="test-username" placeholder="用户名" value="testuser1">
+            <input type="password" id="test-password" placeholder="密码" value="Test1234">
+            <select id="test-role">
+                <option value="member">普通成员</option>
+                <option value="admin">管理员</option>
+            </select>
+            <button onclick="createTestUser()" class="btn-primary">创建用户</button>
+        </div>
+        <div>
+            <h3>测试用户列表</h3>
+            <button onclick="loadAndDisplayUsers()">刷新用户列表</button>
+            <button onclick="deleteAllTestUsers()" class="btn-danger">删除所有测试用户</button>
+        </div>
+        <div id="users-list"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. 模拟应用流程测试</h2>
+        <button onclick="simulateAppFlow()">模拟完整应用流程</button>
+        <button onclick="testConcurrentOperations()">测试并发操作</button>
+        <div id="simulation-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. LocalStorage 容量检测</h2>
+        <button onclick="checkStorageCapacity()">检查存储容量</button>
+        <div id="capacity-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>6. 操作日志</h2>
+        <button onclick="clearLogs()">清空日志</button>
+        <div id="log-container" class="log-container"></div>
+    </div>
+
+    <script>
+        const logs = [];
+
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleString();
+            const logEntry = { timestamp, message, type };
+            logs.unshift(logEntry);
+
+            const logContainer = document.getElementById('log-container');
+            const logDiv = document.createElement('div');
+            logDiv.className = 'log-entry';
+            logDiv.innerHTML = `<span class="log-timestamp">[${timestamp}]</span> ${message}`;
+            logDiv.style.borderLeft = `3px solid ${
+                type === 'success' ? '#4CAF50' :
+                type === 'error' ? '#dc3545' :
+                type === 'warning' ? '#ffc107' : '#17a2b8'
+            }`;
+            logContainer.insertBefore(logDiv, logContainer.firstChild);
+
+            if (logs.length > 100) {
+                logs.pop();
+            }
+        }
+
+        function clearLogs() {
+            logs.length = 0;
+            document.getElementById('log-container').innerHTML = '';
+            addLog('日志已清空', 'info');
+        }
+
+        function displayResult(containerId, html, type = 'info') {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `<div class="test-result ${type}">${html}</div>`;
+        }
+
+        // 1. LocalStorage 可用性检测
+        function testLocalStorageAvailability() {
+            addLog('开始检测 LocalStorage 可用性...', 'info');
+
+            try {
+                const testKey = '__localStorage_test__';
+                const testValue = 'test';
+
+                // 测试写入
+                localStorage.setItem(testKey, testValue);
+                addLog('✓ LocalStorage 写入测试通过', 'success');
+
+                // 测试读取
+                const readValue = localStorage.getItem(testKey);
+                if (readValue === testValue) {
+                    addLog('✓ LocalStorage 读取测试通过', 'success');
+                } else {
+                    addLog('✗ LocalStorage 读取测试失败', 'error');
+                }
+
+                // 测试删除
+                localStorage.removeItem(testKey);
+                addLog('✓ LocalStorage 删除测试通过', 'success');
+
+                // 检查是否真正可用
+                const isAvailable = typeof localStorage !== 'undefined';
+                const canWrite = (() => {
+                    try {
+                        localStorage.setItem('test', 'test');
+                        localStorage.removeItem('test');
+                        return true;
+                    } catch (e) {
+                        return false;
+                    }
+                })();
+
+                const resultHTML = `
+                    <h3>检测结果：${isAvailable && canWrite ? '✅ LocalStorage 可用' : '❌ LocalStorage 不可用'}</h3>
+                    <ul>
+                        <li>typeof localStorage: <strong>${typeof localStorage}</strong></li>
+                        <li>localStorage 可写: <strong>${canWrite ? '是' : '否'}</strong></li>
+                        <li>浏览器支持: <strong>${isAvailable ? '是' : '否'}</strong></li>
+                    </ul>
+                    ${!canWrite ? '<p style="color: red;">警告: LocalStorage 可能被浏览器禁用或处于隐私模式</p>' : ''}
+                `;
+
+                displayResult('availability-result', resultHTML, canWrite ? 'success' : 'error');
+                addLog(`LocalStorage 检测完成: ${canWrite ? '可用' : '不可用'}`, canWrite ? 'success' : 'error');
+
+            } catch (error) {
+                const errorHTML = `
+                    <h3>❌ LocalStorage 检测失败</h3>
+                    <p>错误类型: ${error.name}</p>
+                    <p>错误信息: ${error.message}</p>
+                `;
+                displayResult('availability-result', errorHTML, 'error');
+                addLog(`LocalStorage 检测失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 2. 基本存储测试
+        function testBasicStorage() {
+            addLog('开始基本存储测试...', 'info');
+
+            try {
+                // 测试不同数据类型
+                const testData = {
+                    string: 'Hello World',
+                    number: 12345,
+                    boolean: true,
+                    array: [1, 2, 3, 4, 5],
+                    object: { key: 'value', nested: { deep: true } },
+                    date: new Date().toISOString(),
+                    unicode: '中文测试 🚀',
+                    specialChars: '<>\'\"&'
+                };
+
+                const startTime = performance.now();
+                localStorage.setItem('test_basic_data', JSON.stringify(testData));
+                const endTime = performance.now();
+
+                const retrievedData = JSON.parse(localStorage.getItem('test_basic_data'));
+                const isEqual = JSON.stringify(testData) === JSON.stringify(retrievedData);
+
+                const resultHTML = `
+                    <h3>${isEqual ? '✅ 基本存储测试通过' : '❌ 基本存储测试失败'}</h3>
+                    <p>写入耗时: ${(endTime - startTime).toFixed(2)}ms</p>
+                    <p>数据大小: ${JSON.stringify(testData).length} 字节</p>
+                    <details>
+                        <summary>查看测试数据</summary>
+                        <pre>${JSON.stringify(testData, null, 2)}</pre>
+                    </details>
+                `;
+
+                displayResult('storage-result', resultHTML, isEqual ? 'success' : 'error');
+                addLog(`基本存储测试: ${isEqual ? '通过' : '失败'}`, isEqual ? 'success' : 'error');
+
+            } catch (error) {
+                displayResult('storage-result', `<h3>❌ 测试失败</h3><p>${error.message}</p>`, 'error');
+                addLog(`基本存储测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 3. 大数据存储测试
+        function testLargeDataStorage() {
+            addLog('开始大数据存储测试...', 'info');
+
+            try {
+                // 模拟大量用户数据
+                const largeData = {
+                    users: [],
+                    datasets: [],
+                    logs: []
+                };
+
+                // 生成1000个模拟用户
+                for (let i = 0; i < 1000; i++) {
+                    largeData.users.push({
+                        id: `user_${i}`,
+                        username: `user${i}`,
+                        password: `password${i}`,
+                        role: i % 10 === 0 ? 'admin' : 'member',
+                        enabled: true,
+                        createdAt: new Date().toISOString(),
+                        permissions: {
+                            fileUpload: true,
+                            search: true,
+                            download: true,
+                            adminPanel: i % 10 === 0,
+                            dataDelete: i % 10 === 0
+                        }
+                    });
+                }
+
+                const dataSize = JSON.stringify(largeData).length;
+                const sizeInMB = (dataSize / 1024 / 1024).toFixed(2);
+
+                addLog(`生成测试数据大小: ${sizeInMB} MB`, 'info');
+
+                const startTime = performance.now();
+                localStorage.setItem('test_large_data', JSON.stringify(largeData));
+                const endTime = performance.now();
+
+                const retrievedData = JSON.parse(localStorage.getItem('test_large_data'));
+                const isEqual = largeData.users.length === retrievedData.users.length;
+
+                const resultHTML = `
+                    <h3>${isEqual ? '✅ 大数据存储测试通过' : '❌ 大数据存储测试失败'}</h3>
+                    <p>数据量: ${largeData.users.length} 个用户</p>
+                    <p>数据大小: ${sizeInMB} MB</p>
+                    <p>写入耗时: ${(endTime - startTime).toFixed(2)}ms</p>
+                    <p>读取验证: ${isEqual ? '通过' : '失败'}</p>
+                    ${dataSize > 5 * 1024 * 1024 ? '<p style="color: orange;">⚠️ 数据接近 LocalStorage 限制 (通常 5-10MB)</p>' : ''}
+                `;
+
+                displayResult('storage-result', resultHTML, isEqual ? 'success' : 'error');
+                addLog(`大数据存储测试: ${isEqual ? '通过' : '失败'}`, isEqual ? 'success' : 'error');
+
+                // 清理测试数据
+                localStorage.removeItem('test_large_data');
+
+            } catch (error) {
+                const errorMsg = error.name === 'QuotaExceededError'
+                    ? '存储空间不足 (QuotaExceededError)'
+                    : error.message;
+
+                displayResult('storage-result', `
+                    <h3>❌ 大数据存储测试失败</h3>
+                    <p>错误类型: ${error.name}</p>
+                    <p>错误信息: ${errorMsg}</p>
+                    <p>提示: LocalStorage 通常限制为 5-10MB，请检查数据量</p>
+                `, 'error');
+                addLog(`大数据存储测试失败: ${errorMsg}`, 'error');
+            }
+        }
+
+        // 4. 创建测试用户
+        function createTestUser() {
+            const username = document.getElementById('test-username').value;
+            const password = document.getElementById('test-password').value;
+            const role = document.getElementById('test-role').value;
+
+            if (!username || !password) {
+                alert('请填写用户名和密码');
+                return;
+            }
+
+            addLog(`尝试创建用户: ${username}`, 'info');
+
+            try {
+                // 加载现有用户
+                let users = [];
+                const savedUsers = localStorage.getItem('users');
+                if (savedUsers) {
+                    users = JSON.parse(savedUsers);
+                    addLog(`加载现有用户: ${users.length} 个`, 'info');
+                }
+
+                // 检查是否已存在
+                if (users.some(u => u.username === username)) {
+                    displayResult('users-list', `<p style="color: red;">用户 ${username} 已存在</p>`, 'error');
+                    addLog(`创建用户失败: ${username} 已存在`, 'error');
+                    return;
+                }
+
+                // 创建新用户
+                const newUser = {
+                    id: Date.now().toString(),
+                    username: username,
+                    password: password,
+                    role: role,
+                    enabled: true,
+                    createdAt: new Date().toISOString()
+                };
+
+                users.push(newUser);
+                addLog(`添加新用户到数组: ${username}`, 'info');
+
+                // 保存到 LocalStorage
+                localStorage.setItem('users', JSON.stringify(users));
+                addLog(`保存用户数据到 LocalStorage`, 'info');
+
+                // 验证保存
+                const verifyUsers = JSON.parse(localStorage.getItem('users'));
+                const saved = verifyUsers.some(u => u.username === username);
+
+                if (saved) {
+                    displayResult('users-list', `<p style="color: green;">✅ 用户 ${username} 创建成功！</p>`, 'success');
+                    addLog(`用户 ${username} 创建成功`, 'success');
+                    loadAndDisplayUsers();
+                } else {
+                    displayResult('users-list', `<p style="color: red;">❌ 用户 ${username} 创建失败：数据未保存</p>`, 'error');
+                    addLog(`用户 ${username} 创建失败：数据未保存`, 'error');
+                }
+
+            } catch (error) {
+                displayResult('users-list', `<p style="color: red;">❌ 创建用户失败: ${error.message}</p>`, 'error');
+                addLog(`创建用户失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 5. 加载和显示用户
+        function loadAndDisplayUsers() {
+            addLog('加载用户列表...', 'info');
+
+            try {
+                const savedUsers = localStorage.getItem('users');
+
+                if (!savedUsers) {
+                    displayResult('users-list', '<p>暂无用户数据</p>', 'info');
+                    addLog('暂无用户数据', 'info');
+                    return;
+                }
+
+                const users = JSON.parse(savedUsers);
+
+                if (users.length === 0) {
+                    displayResult('users-list', '<p>暂无用户数据</p>', 'info');
+                    return;
+                }
+
+                let tableHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>用户名</th>
+                                <th>密码</th>
+                                <th>角色</th>
+                                <th>状态</th>
+                                <th>创建时间</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                users.forEach(user => {
+                    tableHTML += `
+                        <tr>
+                            <td>${user.id}</td>
+                            <td>${user.username}</td>
+                            <td>${user.password}</td>
+                            <td>${user.role}</td>
+                            <td>${user.enabled ? '✅ 启用' : '❌ 禁用'}</td>
+                            <td>${new Date(user.createdAt).toLocaleString()}</td>
+                        </tr>
+                    `;
+                });
+
+                tableHTML += '</tbody></table>';
+                tableHTML += `<p>共 ${users.length} 个用户</p>`;
+
+                document.getElementById('users-list').innerHTML = tableHTML;
+                addLog(`加载了 ${users.length} 个用户`, 'success');
+
+            } catch (error) {
+                displayResult('users-list', `<p style="color: red;">加载用户失败: ${error.message}</p>`, 'error');
+                addLog(`加载用户失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 6. 删除所有测试用户
+        function deleteAllTestUsers() {
+            if (!confirm('确定要删除所有测试用户吗？这不会删除管理员账户。')) {
+                return;
+            }
+
+            addLog('删除所有测试用户...', 'warning');
+
+            try {
+                let users = [];
+                const savedUsers = localStorage.getItem('users');
+
+                if (savedUsers) {
+                    users = JSON.parse(savedUsers);
+                }
+
+                // 只保留管理员账户
+                const adminUsers = users.filter(u => u.role === 'admin' || u.username === 'admin');
+
+                localStorage.setItem('users', JSON.stringify(adminUsers));
+
+                displayResult('users-list', `<p style="color: green;">✅ 已删除所有测试用户，保留 ${adminUsers.length} 个管理员账户</p>`, 'success');
+                addLog(`删除完成，保留 ${adminUsers.length} 个管理员账户`, 'success');
+                loadAndDisplayUsers();
+
+            } catch (error) {
+                displayResult('users-list', `<p style="color: red;">删除失败: ${error.message}</p>`, 'error');
+                addLog(`删除失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 7. 清空所有数据
+        function clearAllData() {
+            if (!confirm('确定要清空 LocalStorage 中的所有数据吗？这将删除所有用户、数据集和设置！')) {
+                return;
+            }
+
+            addLog('清空所有 LocalStorage 数据...', 'warning');
+
+            try {
+                localStorage.clear();
+                displayResult('storage-result', '<p style="color: green;">✅ 所有数据已清空</p>', 'success');
+                displayResult('users-list', '<p>用户数据已清空</p>', 'info');
+                addLog('所有数据已清空', 'success');
+
+                // 重新创建默认管理员
+                const defaultAdmin = [{
+                    id: '1',
+                    username: 'admin',
+                    password: 'password',
+                    role: 'admin',
+                    enabled: true,
+                    createdAt: new Date().toISOString()
+                }];
+                localStorage.setItem('users', JSON.stringify(defaultAdmin));
+                addLog('重新创建默认管理员账户', 'success');
+
+            } catch (error) {
+                displayResult('storage-result', `<p style="color: red;">清空失败: ${error.message}</p>`, 'error');
+                addLog(`清空失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 8. 模拟应用流程
+        function simulateAppFlow() {
+            addLog('开始模拟应用流程...', 'info');
+            displayResult('simulation-result', '<p>模拟中...</p>', 'info');
+
+            const steps = [];
+            const results = [];
+
+            try {
+                // 步骤1: 初始化
+                steps.push('1. 初始化应用');
+                localStorage.removeItem('users');
+                localStorage.removeItem('dataSets');
+                results.push({ step: '初始化', status: 'success' });
+
+                // 步骤2: 创建管理员
+                steps.push('2. 创建管理员账户');
+                const adminUser = {
+                    id: '1',
+                    username: 'admin',
+                    password: 'password',
+                    role: 'admin',
+                    enabled: true,
+                    createdAt: new Date().toISOString()
+                };
+                localStorage.setItem('users', JSON.stringify([adminUser]));
+                results.push({ step: '创建管理员', status: 'success' });
+
+                // 步骤3: 模拟登录
+                steps.push('3. 模拟管理员登录');
+                const loginUsers = JSON.parse(localStorage.getItem('users'));
+                const loggedInUser = loginUsers.find(u => u.username === 'admin' && u.password === 'password');
+                if (loggedInUser) {
+                    results.push({ step: '管理员登录', status: 'success' });
+                } else {
+                    results.push({ step: '管理员登录', status: 'failed' });
+                }
+
+                // 步骤4: 创建普通用户
+                steps.push('4. 创建普通用户 testuser1');
+                const newUser = {
+                    id: Date.now().toString(),
+                    username: 'testuser1',
+                    password: 'Test1234',
+                    role: 'member',
+                    enabled: true,
+                    createdAt: new Date().toISOString()
+                };
+                const updatedUsers = [...loginUsers, newUser];
+                localStorage.setItem('users', JSON.stringify(updatedUsers));
+                results.push({ step: '创建普通用户', status: 'success' });
+
+                // 步骤5: 模拟刷新页面
+                steps.push('5. 模拟页面刷新');
+                const refreshedUsers = JSON.parse(localStorage.getItem('users'));
+                const foundUser = refreshedUsers.find(u => u.username === 'testuser1');
+                if (foundUser) {
+                    results.push({ step: '页面刷新后加载用户', status: 'success' });
+                } else {
+                    results.push({ step: '页面刷新后加载用户', status: 'failed' });
+                }
+
+                // 步骤6: 测试登录新用户
+                steps.push('6. 测试新用户登录');
+                const canLogin = refreshedUsers.some(u =>
+                    u.username === 'testuser1' &&
+                    u.password === 'Test1234' &&
+                    u.enabled
+                );
+                results.push({ step: '新用户登录测试', status: canLogin ? 'success' : 'failed' });
+
+                // 显示结果
+                let resultHTML = '<h3>模拟流程结果</h3><table><thead><tr><th>步骤</th><th>状态</th></tr></thead><tbody>';
+                results.forEach((result, index) => {
+                    const statusIcon = result.status === 'success' ? '✅' : '❌';
+                    const statusColor = result.status === 'success' ? 'color: green;' : 'color: red;';
+                    resultHTML += `<tr><td>${steps[index]}</td><td style="${statusColor}">${statusIcon} ${result.status}</td></tr>`;
+                });
+                resultHTML += '</tbody></table>';
+
+                const allSuccess = results.every(r => r.status === 'success');
+                displayResult('simulation-result', resultHTML, allSuccess ? 'success' : 'error');
+
+                const summary = allSuccess
+                    ? '✅ 完整应用流程测试通过'
+                    : '❌ 应用流程测试失败';
+                addLog(summary, allSuccess ? 'success' : 'error');
+
+                // 清理
+                localStorage.removeItem('users');
+                localStorage.removeItem('dataSets');
+
+            } catch (error) {
+                displayResult('simulation-result', `<p style="color: red;">模拟失败: ${error.message}</p>`, 'error');
+                addLog(`模拟失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 9. 测试并发操作
+        function testConcurrentOperations() {
+            addLog('开始并发操作测试...', 'info');
+            displayResult('simulation-result', '<p>并发测试中...</p>', 'info');
+
+            const promises = [];
+            const startTime = performance.now();
+
+            try {
+                // 同时创建10个用户
+                for (let i = 0; i < 10; i++) {
+                    promises.push(new Promise((resolve, reject) => {
+                        setTimeout(() => {
+                            try {
+                                const users = JSON.parse(localStorage.getItem('users') || '[]');
+                                users.push({
+                                    id: `concurrent_${i}`,
+                                    username: `concurrent_user_${i}`,
+                                    password: 'Test1234',
+                                    role: 'member',
+                                    enabled: true,
+                                    createdAt: new Date().toISOString()
+                                });
+                                localStorage.setItem('users', JSON.stringify(users));
+                                resolve(`用户 ${i} 创建成功`);
+                            } catch (error) {
+                                reject(`用户 ${i} 创建失败: ${error.message}`);
+                            }
+                        }, Math.random() * 100);
+                    }));
+                }
+
+                Promise.allSettled(promises).then(results => {
+                    const endTime = performance.now();
+                    const successes = results.filter(r => r.status === 'fulfilled').length;
+                    const failures = results.filter(r => r.status === 'rejected').length;
+
+                    let resultHTML = `
+                        <h3>并发操作测试结果</h3>
+                        <p>总操作数: 10</p>
+                        <p>成功: ${successes}</p>
+                        <p>失败: ${failures}</p>
+                        <p>耗时: ${(endTime - startTime).toFixed(2)}ms</p>
+                    `;
+
+                    if (failures > 0) {
+                        resultHTML += '<h4>失败的操作:</h4><ul>';
+                        results.filter(r => r.status === 'rejected').forEach(r => {
+                            resultHTML += `<li style="color: red;">${r.reason}</li>`;
+                        });
+                        resultHTML += '</ul>';
+                    }
+
+                    const finalUsers = JSON.parse(localStorage.getItem('users') || '[]');
+                    resultHTML += `<p>最终用户数: ${finalUsers.length}</p>`;
+
+                    displayResult('simulation-result', resultHTML, failures === 0 ? 'success' : 'warning');
+                    addLog(`并发测试完成: ${successes} 成功, ${failures} 失败`, failures === 0 ? 'success' : 'warning');
+
+                    // 清理
+                    localStorage.removeItem('users');
+                });
+
+            } catch (error) {
+                displayResult('simulation-result', `<p style="color: red;">并发测试失败: ${error.message}</p>`, 'error');
+                addLog(`并发测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 10. 检查存储容量
+        function checkStorageCapacity() {
+            addLog('检查存储容量...', 'info');
+
+            try {
+                let totalSize = 0;
+                const items = [];
+
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    const value = localStorage.getItem(key);
+                    const size = (key.length + value.length) * 2; // Unicode 每个字符 2 字节
+                    totalSize += size;
+
+                    items.push({
+                        key,
+                        size: (size / 1024).toFixed(2) + ' KB',
+                        sizeBytes: size
+                    });
+                }
+
+                const maxSize = 5 * 1024 * 1024; // 假设 5MB
+                const usagePercent = (totalSize / maxSize * 100).toFixed(2);
+
+                let tableHTML = `
+                    <h3>存储容量统计</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>键名</th>
+                                <th>大小</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                items.sort((a, b) => b.sizeBytes - a.sizeBytes).forEach(item => {
+                    tableHTML += `<tr><td>${item.key}</td><td>${item.size}</td></tr>`;
+                });
+
+                tableHTML += `
+                        </tbody>
+                    </table>
+                    <p><strong>总使用量:</strong> ${(totalSize / 1024 / 1024).toFixed(2)} MB</p>
+                    <p><strong>估计限制:</strong> 5 MB</p>
+                    <p><strong>使用率:</strong> ${usagePercent}%</p>
+                `;
+
+                if (totalSize > maxSize * 0.8) {
+                    tableHTML += '<p style="color: orange;">⚠️ 存储空间使用率超过 80%，建议清理不必要的数据</p>';
+                }
+
+                displayResult('capacity-result', tableHTML, totalSize > maxSize ? 'error' : 'info');
+                addLog(`存储容量: ${(totalSize / 1024 / 1024).toFixed(2)} MB / 5 MB (${usagePercent}%)`, 'info');
+
+            } catch (error) {
+                displayResult('capacity-result', `<p style="color: red;">检查失败: ${error.message}</p>`, 'error');
+                addLog(`检查失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载时自动运行基本检测
+        window.addEventListener('load', () => {
+            addLog('页面加载完成，开始自动检测...', 'info');
+            testLocalStorageAvailability();
+
+            // 初始化默认管理员（如果不存在）
+            if (!localStorage.getItem('users')) {
+                const defaultAdmin = [{
+                    id: '1',
+                    username: 'admin',
+                    password: 'password',
+                    role: 'admin',
+                    enabled: true,
+                    createdAt: new Date().toISOString()
+                }];
+                localStorage.setItem('users', JSON.stringify(defaultAdmin));
+                addLog('已初始化默认管理员账户', 'success');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1177,8 +1177,21 @@ const App: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // 动态获取 API 基础 URL
+    const getApiBaseUrl = () => {
+      if (import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL;
+      }
+      const isProduction = window.location.hostname !== 'localhost' && 
+                           window.location.hostname !== '127.0.0.1';
+      if (isProduction) {
+        return import.meta.env.VITE_API_URL || 'https://your-api.onrender.com/api';
+      }
+      return 'http://localhost:3001/api';
+    };
+
     try {
-      const response = await fetch('http://localhost:3001/api/auth/login', {
+      const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

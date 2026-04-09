@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据保存功能测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .test-section { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .result { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        button { background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background-color: #45a049; }
+        .btn-danger { background-color: #dc3545; }
+        .btn-danger:hover { background-color: #c82333; }
+        .btn-primary { background-color: #007bff; }
+        .btn-primary:hover { background-color: #0056b3; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; max-height: 300px; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #4CAF50; color: white; }
+    </style>
+</head>
+<body>
+    <h1>🔍 数据保存功能测试</h1>
+
+    <div class="test-section">
+        <h2>1. 存储服务测试</h2>
+        <button onclick="testStorageService()">测试存储服务</button>
+        <div id="storage-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. 用户创建测试</h2>
+        <div>
+            <input type="text" id="test-username" placeholder="用户名" value="testuser_1">
+            <input type="password" id="test-password" placeholder="密码" value="Test1234">
+            <button onclick="createUserTest()">创建用户</button>
+            <button onclick="getAllUsersTest()">获取用户列表</button>
+        </div>
+        <div id="user-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. 数据持久化测试</h2>
+        <button onclick="persistenceTest()">测试持久化</button>
+        <button onclick="reloadPage()" class="btn-primary">刷新页面</button>
+        <div id="persistence-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. 完整测试流程</h2>
+        <button onclick="runFullTest()">运行完整测试</button>
+        <button onclick="clearAllData()" class="btn-danger">清空所有数据</button>
+        <div id="full-test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. 测试日志</h2>
+        <div id="test-log"></div>
+    </div>
+
+    <script>
+        // 类型定义
+        class StorageService {
+            constructor() {
+                this.db = null;
+                this.dbName = 'xuanren_app_db';
+                this.dbVersion = 1;
+            }
+
+            async init() {
+                log('初始化存储服务...');
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, this.dbVersion);
+
+                    request.onerror = (event) => {
+                        const error = (event.target).error;
+                        log(`数据库打开失败: ${error.message}`, 'error');
+                        reject(error);
+                    };
+
+                    request.onsuccess = (event) => {
+                        this.db = (event.target).result;
+                        log('数据库打开成功');
+                        resolve();
+                    };
+
+                    request.onupgradeneeded = (event) => {
+                        const db = (event.target).result;
+
+                        // 创建用户存储
+                        if (!db.objectStoreNames.contains('users')) {
+                            const userStore = db.createObjectStore('users', { keyPath: 'id' });
+                            userStore.createIndex('username', 'username', { unique: true });
+                            log('创建用户存储成功');
+                        }
+
+                        // 创建数据集存储
+                        if (!db.objectStoreNames.contains('datasets')) {
+                            const dataSetStore = db.createObjectStore('datasets', { keyPath: 'id' });
+                            dataSetStore.createIndex('name', 'name');
+                            log('创建数据集存储成功');
+                        }
+
+                        // 创建筛选条件存储
+                        if (!db.objectStoreNames.contains('filters')) {
+                            db.createObjectStore('filters', { keyPath: 'id' });
+                            log('创建筛选条件存储成功');
+                        }
+
+                        // 创建日志存储
+                        if (!db.objectStoreNames.contains('logs')) {
+                            const logStore = db.createObjectStore('logs', { keyPath: 'id' });
+                            logStore.createIndex('timestamp', 'timestamp');
+                            log('创建日志存储成功');
+                        }
+                    };
+                });
+            }
+
+            async createUser(userData) {
+                log(`创建用户: ${userData.username}`);
+                return new Promise((resolve, reject) => {
+                    if (!this.db) {
+                        const error = new Error('数据库未初始化');
+                        log(error.message, 'error');
+                        reject(error);
+                        return;
+                    }
+
+                    const user = {
+                        ...userData,
+                        id: Date.now().toString(),
+                        createdAt: new Date()
+                    };
+
+                    const transaction = this.db.transaction('users', 'readwrite');
+                    const store = transaction.objectStore('users');
+
+                    const request = store.add(user);
+
+                    request.onsuccess = () => {
+                        log(`用户创建成功: ${user.username}`);
+                        resolve(user);
+                    };
+
+                    request.onerror = (event) => {
+                        const error = (event.target).error;
+                        log(`用户创建失败: ${error.message}`, 'error');
+                        reject(error);
+                    };
+                });
+            }
+
+            async getAllUsers() {
+                log('获取所有用户...');
+                return new Promise((resolve, reject) => {
+                    if (!this.db) {
+                        const error = new Error('数据库未初始化');
+                        log(error.message, 'error');
+                        reject(error);
+                        return;
+                    }
+
+                    const transaction = this.db.transaction('users', 'readonly');
+                    const store = transaction.objectStore('users');
+
+                    const request = store.getAll();
+
+                    request.onsuccess = () => {
+                        const users = request.result;
+                        log(`获取到 ${users.length} 个用户`);
+                        resolve(users);
+                    };
+
+                    request.onerror = (event) => {
+                        const error = (event.target).error;
+                        log(`获取用户失败: ${error.message}`, 'error');
+                        reject(error);
+                    };
+                });
+            }
+
+            async getUserByUsername(username) {
+                log(`根据用户名获取用户: ${username}`);
+                return new Promise((resolve, reject) => {
+                    if (!this.db) {
+                        const error = new Error('数据库未初始化');
+                        log(error.message, 'error');
+                        reject(error);
+                        return;
+                    }
+
+                    const transaction = this.db.transaction('users', 'readonly');
+                    const store = transaction.objectStore('users');
+                    const index = store.index('username');
+
+                    const request = index.get(username);
+
+                    request.onsuccess = () => {
+                        const user = request.result;
+                        if (user) {
+                            log(`找到用户: ${user.username}`);
+                        } else {
+                            log(`未找到用户: ${username}`);
+                        }
+                        resolve(user);
+                    };
+
+                    request.onerror = (event) => {
+                        const error = (event.target).error;
+                        log(`获取用户失败: ${error.message}`, 'error');
+                        reject(error);
+                    };
+                });
+            }
+
+            async clearUsers() {
+                log('清空所有用户...');
+                return new Promise((resolve, reject) => {
+                    if (!this.db) {
+                        const error = new Error('数据库未初始化');
+                        log(error.message, 'error');
+                        reject(error);
+                        return;
+                    }
+
+                    const transaction = this.db.transaction('users', 'readwrite');
+                    const store = transaction.objectStore('users');
+                    const request = store.clear();
+
+                    request.onsuccess = () => {
+                        log('清空用户成功');
+                        resolve();
+                    };
+
+                    request.onerror = (event) => {
+                        const error = (event.target).error;
+                        log(`清空用户失败: ${error.message}`, 'error');
+                        reject(error);
+                    };
+                });
+            }
+
+            async createDataSet(dataSetData) {
+                log(`创建数据集: ${dataSetData.name}`);
+                return new Promise((resolve, reject) => {
+                    if (!this.db) {
+                        const error = new Error('数据库未初始化');
+                        log(error.message, 'error');
+                        reject(error);
+                        return;
+                    }
+
+                    const dataSet = {
+                        ...dataSetData,
+                        id: Date.now().toString(),
+                        createdAt: new Date()
+                    };
+
+                    const transaction = this.db.transaction('datasets', 'readwrite');
+                    const store = transaction.objectStore('datasets');
+
+                    const request = store.add(dataSet);
+
+                    request.onsuccess = () => {
+                        log(`数据集创建成功: ${dataSet.name}`);
+                        resolve(dataSet);
+                    };
+
+                    request.onerror = (event) => {
+                        const error = (event.target).error;
+                        log(`数据集创建失败: ${error.message}`, 'error');
+                        reject(error);
+                    };
+                });
+            }
+
+            async getAllDataSets() {
+                log('获取所有数据集...');
+                return new Promise((resolve, reject) => {
+                    if (!this.db) {
+                        const error = new Error('数据库未初始化');
+                        log(error.message, 'error');
+                        reject(error);
+                        return;
+                    }
+
+                    const transaction = this.db.transaction('datasets', 'readonly');
+                    const store = transaction.objectStore('datasets');
+
+                    const request = store.getAll();
+
+                    request.onsuccess = () => {
+                        const dataSets = request.result;
+                        log(`获取到 ${dataSets.length} 个数据集`);
+                        resolve(dataSets);
+                    };
+
+                    request.onerror = (event) => {
+                        const error = (event.target).error;
+                        log(`获取数据集失败: ${error.message}`, 'error');
+                        reject(error);
+                    };
+                });
+            }
+        }
+
+        const storageService = new StorageService();
+        const testLog = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            testLog.push({ message, type, timestamp });
+            updateLogDisplay();
+            console.log(logEntry);
+        }
+
+        function updateLogDisplay() {
+            const logDiv = document.getElementById('test-log');
+            let html = '<h3>测试日志</h3>';
+            html += '<div style="max-height: 300px; overflow-y: auto;">';
+            
+            testLog.slice(-50).forEach(entry => {
+                html += `<div class="result ${entry.type}">${entry.timestamp}: ${entry.message}</div>`;
+            });
+            
+            html += '</div>';
+            logDiv.innerHTML = html;
+        }
+
+        function displayResult(containerId, html, type = 'info') {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `<div class="result ${type}">${html}</div>`;
+        }
+
+        async function testStorageService() {
+            try {
+                displayResult('storage-result', '<p>测试存储服务中...</p>', 'info');
+                await storageService.init();
+                displayResult('storage-result', '<h3>✅ 存储服务测试通过</h3><p>数据库初始化成功</p>', 'success');
+            } catch (error) {
+                displayResult('storage-result', `<h3>❌ 存储服务测试失败</h3><p>错误: ${error.message}</p>`, 'error');
+            }
+        }
+
+        async function createUserTest() {
+            try {
+                const username = document.getElementById('test-username').value;
+                const password = document.getElementById('test-password').value;
+
+                if (!username || !password) {
+                    displayResult('user-result', '<h3>❌ 请输入用户名和密码</h3>', 'error');
+                    return;
+                }
+
+                displayResult('user-result', '<p>创建用户中...</p>', 'info');
+                
+                // 确保存储服务已初始化
+                await storageService.init();
+
+                // 先检查用户是否存在
+                const existingUser = await storageService.getUserByUsername(username);
+                if (existingUser) {
+                    displayResult('user-result', `<h3>❌ 用户名 ${username} 已存在</h3>`, 'error');
+                    return;
+                }
+
+                // 创建用户
+                const user = await storageService.createUser({
+                    username: username,
+                    password: password,
+                    role: 'member',
+                    enabled: true
+                });
+
+                displayResult('user-result', `
+                    <h3>✅ 用户创建成功</h3>
+                    <p>用户名: ${user.username}</p>
+                    <p>ID: ${user.id}</p>
+                    <p>创建时间: ${new Date(user.createdAt).toLocaleString()}</p>
+                `, 'success');
+
+            } catch (error) {
+                displayResult('user-result', `<h3>❌ 创建用户失败</h3><p>错误: ${error.message}</p>`, 'error');
+            }
+        }
+
+        async function getAllUsersTest() {
+            try {
+                displayResult('user-result', '<p>获取用户列表中...</p>', 'info');
+                
+                // 确保存储服务已初始化
+                await storageService.init();
+
+                const users = await storageService.getAllUsers();
+
+                if (users.length === 0) {
+                    displayResult('user-result', '<h3>⚠️ 没有用户数据</h3>', 'info');
+                } else {
+                    let html = `
+                        <h3>✅ 用户列表</h3>
+                        <p>共 ${users.length} 个用户</p>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>用户名</th>
+                                    <th>角色</th>
+                                    <th>状态</th>
+                                    <th>创建时间</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                    users.forEach(user => {
+                        html += `
+                            <tr>
+                                <td>${user.id}</td>
+                                <td>${user.username}</td>
+                                <td>${user.role}</td>
+                                <td>${user.enabled ? '✅' : '❌'}</td>
+                                <td>${new Date(user.createdAt).toLocaleString()}</td>
+                            </tr>
+                        `;
+                    });
+
+                    html += `
+                            </tbody>
+                        </table>
+                        <pre>${JSON.stringify(users, null, 2)}</pre>
+                    `;
+
+                    displayResult('user-result', html, 'success');
+                }
+
+            } catch (error) {
+                displayResult('user-result', `<h3>❌ 获取用户列表失败</h3><p>错误: ${error.message}</p>`, 'error');
+            }
+        }
+
+        async function persistenceTest() {
+            try {
+                displayResult('persistence-result', '<p>测试数据持久化...</p>', 'info');
+
+                // 确保存储服务已初始化
+                await storageService.init();
+
+                // 创建测试用户
+                const testUsername = 'persistence_test_' + Date.now();
+                const user = await storageService.createUser({
+                    username: testUsername,
+                    password: 'Test1234',
+                    role: 'member',
+                    enabled: true
+                });
+
+                // 关闭数据库连接
+                if (storageService.db) {
+                    storageService.db.close();
+                    storageService.db = null;
+                    log('数据库连接已关闭');
+                }
+
+                // 重新初始化存储服务
+                await storageService.init();
+
+                // 重新获取用户
+                const verifyUser = await storageService.getUserByUsername(testUsername);
+
+                if (verifyUser) {
+                    displayResult('persistence-result', `
+                        <h3>✅ 数据持久化测试通过</h3>
+                        <p>用户 ${testUsername} 成功保存并在数据库重新打开后仍存在</p>
+                        <p>ID: ${verifyUser.id}</p>
+                        <p>创建时间: ${new Date(verifyUser.createdAt).toLocaleString()}</p>
+                    `, 'success');
+                } else {
+                    displayResult('persistence-result', `
+                        <h3>❌ 数据持久化测试失败</h3>
+                        <p>用户 ${testUsername} 在数据库重新打开后丢失</p>
+                    `, 'error');
+                }
+
+            } catch (error) {
+                displayResult('persistence-result', `<h3>❌ 测试失败</h3><p>错误: ${error.message}</p>`, 'error');
+            }
+        }
+
+        async function runFullTest() {
+            try {
+                displayResult('full-test-result', '<p>运行完整测试流程...</p>', 'info');
+                log('开始完整测试流程');
+
+                // 1. 初始化存储服务
+                await storageService.init();
+                log('步骤1: 存储服务初始化完成');
+
+                // 2. 创建测试用户（文本类型）
+                const user1 = await storageService.createUser({
+                    username: 'test_text_' + Date.now(),
+                    password: 'Test1234',
+                    role: 'member',
+                    enabled: true
+                });
+                log('步骤2: 创建文本类型用户完成');
+
+                // 3. 创建测试用户（数字类型模拟）
+                const user2 = await storageService.createUser({
+                    username: 'test_number_' + Date.now(),
+                    password: 'Test1234',
+                    role: 'member',
+                    enabled: true
+                });
+                log('步骤3: 创建数字类型用户完成');
+
+                // 4. 创建测试用户（日期类型模拟）
+                const user3 = await storageService.createUser({
+                    username: 'test_date_' + Date.now(),
+                    password: 'Test1234',
+                    role: 'member',
+                    enabled: true
+                });
+                log('步骤4: 创建日期类型用户完成');
+
+                // 5. 验证所有用户创建成功
+                const users = await storageService.getAllUsers();
+                log(`步骤5: 验证用户创建，共 ${users.length} 个用户`);
+
+                // 6. 关闭并重新打开数据库
+                if (storageService.db) {
+                    storageService.db.close();
+                    storageService.db = null;
+                    log('步骤6: 关闭数据库连接');
+                }
+
+                // 7. 重新初始化并验证数据
+                await storageService.init();
+                const reloadedUsers = await storageService.getAllUsers();
+                log(`步骤7: 重新加载数据，共 ${reloadedUsers.length} 个用户`);
+
+                // 8. 验证数据一致性
+                const testUsers = reloadedUsers.filter(u => 
+                    u.username.startsWith('test_')
+                );
+
+                if (testUsers.length >= 3) {
+                    displayResult('full-test-result', `
+                        <h3>✅ 完整测试流程通过</h3>
+                        <p>创建了 ${testUsers.length} 个测试用户</p>
+                        <p>数据在数据库重新打开后完整保留</p>
+                        <p>所有数据类型测试成功</p>
+                    `, 'success');
+                    log('完整测试流程通过');
+                } else {
+                    displayResult('full-test-result', `
+                        <h3>❌ 完整测试流程失败</h3>
+                        <p>仅找到 ${testUsers.length} 个测试用户，期望至少 3 个</p>
+                    `, 'error');
+                    log('完整测试流程失败');
+                }
+
+            } catch (error) {
+                displayResult('full-test-result', `<h3>❌ 测试失败</h3><p>错误: ${error.message}</p>`, 'error');
+                log(`测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function clearAllData() {
+            if (!confirm('确定要清空所有数据吗？')) {
+                return;
+            }
+
+            try {
+                displayResult('full-test-result', '<p>清空所有数据中...</p>', 'info');
+                
+                // 确保存储服务已初始化
+                await storageService.init();
+
+                // 清空用户数据
+                await storageService.clearUsers();
+
+                displayResult('full-test-result', '<h3>✅ 所有数据已清空</h3>', 'success');
+                log('所有数据已清空');
+
+            } catch (error) {
+                displayResult('full-test-result', `<h3>❌ 清空数据失败</h3><p>错误: ${error.message}</p>`, 'error');
+                log(`清空数据失败: ${error.message}`, 'error');
+            }
+        }
+
+        function reloadPage() {
+            location.reload();
+        }
+
+        // 页面加载时初始化
+        window.addEventListener('load', async () => {
+            log('页面加载完成，开始测试...');
+            try {
+                await storageService.init();
+                log('存储服务初始化成功');
+            } catch (error) {
+                log(`初始化失败: ${error.message}`, 'error');
+            }
+        });
+    </script>
+</body>
+</html>

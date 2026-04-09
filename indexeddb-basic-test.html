@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IndexedDB 基础测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 20px 0; padding: 10px; border: 1px solid #ddd; }
+        .success { background-color: #d4edda; }
+        .error { background-color: #f8d7da; }
+        button { margin: 5px; padding: 10px; }
+        pre { background: #f4f4f4; padding: 10px; overflow: auto; }
+    </style>
+</head>
+<body>
+    <h1>IndexedDB 基础测试</h1>
+    
+    <div class="test">
+        <h2>1. 测试 IndexedDB 支持</h2>
+        <button onclick="testIndexedDBSupport()">测试支持</button>
+        <div id="support-result"></div>
+    </div>
+    
+    <div class="test">
+        <h2>2. 测试数据库操作</h2>
+        <button onclick="testDatabaseOperations()">测试操作</button>
+        <div id="db-result"></div>
+    </div>
+    
+    <div class="test">
+        <h2>3. 测试数据持久化</h2>
+        <button onclick="testPersistence()">测试持久化</button>
+        <button onclick="reloadPage()">刷新页面</button>
+        <div id="persistence-result"></div>
+    </div>
+    
+    <div class="test">
+        <h2>4. 查看存储状态</h2>
+        <button onclick="checkStorage()">查看状态</button>
+        <div id="storage-result"></div>
+    </div>
+
+    <script>
+        function logResult(id, message, isError = false) {
+            const div = document.getElementById(id);
+            div.innerHTML = `<pre class="${isError ? 'error' : 'success'}">${message}</pre>`;
+            console.log(message);
+        }
+
+        function testIndexedDBSupport() {
+            const isSupported = typeof indexedDB !== 'undefined';
+            logResult('support-result', `IndexedDB 支持: ${isSupported ? '✅' : '❌'}`);
+        }
+
+        async function testDatabaseOperations() {
+            try {
+                // 打开数据库
+                const db = await openDatabase();
+                
+                // 创建测试数据
+                const testData = {
+                    id: 'test1',
+                    name: '测试用户',
+                    created: new Date().toISOString()
+                };
+                
+                // 存储数据
+                await storeData(db, testData);
+                
+                // 读取数据
+                const retrievedData = await getData(db, 'test1');
+                
+                // 验证数据
+                logResult('db-result', `
+数据库操作测试:
+✅ 打开数据库成功
+✅ 存储数据成功
+✅ 读取数据成功
+
+存储的数据:
+${JSON.stringify(testData, null, 2)}
+
+读取的数据:
+${JSON.stringify(retrievedData, null, 2)}
+
+数据匹配: ${JSON.stringify(testData) === JSON.stringify(retrievedData) ? '✅' : '❌'}
+                `);
+                
+                // 关闭数据库
+                db.close();
+                
+            } catch (error) {
+                logResult('db-result', `❌ 数据库操作失败: ${error.message}`, true);
+            }
+        }
+
+        async function testPersistence() {
+            try {
+                // 步骤1: 存储数据
+                const db1 = await openDatabase();
+                const testData = {
+                    id: 'persistence_test',
+                    name: '持久化测试',
+                    timestamp: Date.now()
+                };
+                await storeData(db1, testData);
+                db1.close();
+                
+                // 步骤2: 重新打开数据库并读取数据
+                const db2 = await openDatabase();
+                const retrievedData = await getData(db2, 'persistence_test');
+                db2.close();
+                
+                if (retrievedData) {
+                    logResult('persistence-result', `
+持久化测试:
+✅ 数据存储成功
+✅ 数据库重新打开后数据仍然存在
+
+存储的数据:
+${JSON.stringify(testData, null, 2)}
+
+读取的数据:
+${JSON.stringify(retrievedData, null, 2)}
+                    `);
+                } else {
+                    logResult('persistence-result', `❌ 持久化测试失败: 数据丢失`, true);
+                }
+                
+            } catch (error) {
+                logResult('persistence-result', `❌ 持久化测试失败: ${error.message}`, true);
+            }
+        }
+
+        function reloadPage() {
+            location.reload();
+        }
+
+        async function checkStorage() {
+            try {
+                const databases = await indexedDB.databases();
+                logResult('storage-result', `
+存储状态:
+数据库列表:
+${databases.map(db => `- ${db.name} (版本: ${db.version})`).join('\n')}
+                `);
+            } catch (error) {
+                logResult('storage-result', `❌ 检查存储失败: ${error.message}`, true);
+            }
+        }
+
+        // 辅助函数
+        function openDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('test_db', 1);
+                
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+                
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('test_store')) {
+                        db.createObjectStore('test_store', { keyPath: 'id' });
+                    }
+                };
+            });
+        }
+
+        function storeData(db, data) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction('test_store', 'readwrite');
+                const store = transaction.objectStore('test_store');
+                const request = store.put(data);
+                
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve();
+            });
+        }
+
+        function getData(db, id) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction('test_store', 'readonly');
+                const store = transaction.objectStore('test_store');
+                const request = store.get(id);
+                
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+            });
+        }
+
+        // 页面加载时测试
+        window.onload = function() {
+            testIndexedDBSupport();
+            checkStorage();
+        };
+    </script>
+</body>
+</html>
