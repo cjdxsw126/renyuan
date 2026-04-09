@@ -120,6 +120,17 @@ button:disabled {
   font-weight: bold;
 }
 
+.login-form .button-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  width: 100%;
+}
+
+.login-form .button-group button {
+  flex: 1;
+}
+
 .filter-container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
