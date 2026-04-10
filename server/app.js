@@ -143,12 +143,36 @@ const PORT = process.env.PORT || 3001;
 
 initDatabase().then(() => {
   app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Connected to database`);
+    console.log('\n=================================');
+    console.log('✅ 服务器启动成功！');
+    console.log(`   端口: ${PORT}`);
+    console.log('   数据库: 已连接并初始化');
+    console.log('   环境: ' + (process.env.NODE_ENV || 'development'));
+    console.log('=================================\n');
+    
+    // 输出可用路由
+    console.log('📡 可用的 API 端点:');
+    console.log('   GET  /api/health        - 健康检查');
+    console.log('   POST /api/auth/login    - 用户登录');
+    console.log('   GET  /api/users         - 获取用户列表');
+    console.log('   GET  /api/datasets      - 获取数据集列表');
+    console.log('   GET  /api/persons       - 获取人员数据\n');
   });
 }).catch((err) => {
-  console.error('Failed to start server:', err);
-  process.exit(1);
+  console.error('\n❌❌❌ 启动失败 ❌❌❌');
+  console.error('错误详情:', err.message);
+  if (err.stack) {
+    console.error('堆栈:', err.stack);
+  }
+  console.error('\n请检查:');
+  console.error('1. DATABASE_URL 环境变量是否正确设置');
+  console.error('2. PostgreSQL 数据库是否可访问');
+  console.error('3. 网络连接是否正常\n');
+  
+  // 不要立即退出，让 Render 能看到日志
+  setTimeout(() => {
+    process.exit(1);
+  }, 5000);
 });
 
 module.exports = app;

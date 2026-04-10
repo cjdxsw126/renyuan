@@ -3,29 +3,40 @@ const path = require('path');
 
 // 数据库配置 - 支持环境变量
 const isProduction = process.env.NODE_ENV === 'production';
-const usePostgres = process.env.DATABASE_URL || isProduction;
+const databaseUrl = process.env.DATABASE_URL;
 
 let pool;
 
-if (usePostgres) {
+if (databaseUrl) {
   // PostgreSQL 配置（用于云部署）
-  const databaseUrl = process.env.DATABASE_URL;
-  
   pool = new Pool({
     connectionString: databaseUrl,
-    ssl: { rejectUnauthorized: false } // Render/Heroku 需要
+    ssl: { rejectUnauthorized: false },
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000
   });
 
-  console.log('✅ Connected to PostgreSQL database');
+  // 监听连接错误
+  pool.on('error', (err) => {
+    console.error('❌ PostgreSQL 连接池错误:', err.message);
+  });
+
+} else if (isProduction) {
+  // 生产环境但没有 DATABASE_URL - 报错
+  console.error('❌ 错误: 生产环境必须设置 DATABASE_URL 环境变量');
+  console.error('   请在 Render Dashboard 中添加 DATABASE_URL');
+  process.exit(1);
+  
 } else {
   // SQLite 配置（用于本地开发）
   const sqlite3 = require('sqlite3').verbose();
   const dbPath = path.join(__dirname, 'database.db');
   const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
-      console.error('❌ Database connection error:', err);
+      console.error('❌ SQLite 数据库连接错误:', err);
     } else {
-      console.log('✅ Connected to SQLite database');
+      console.log('✅ 已连接到 SQLite 数据库 (本地开发模式)');
     }
   });
 
@@ -73,7 +84,7 @@ if (usePostgres) {
     end: () => {
       return new Promise((resolve) => {
         db.close((err) => {
-          if (err) console.error('Error closing database:', err);
+          if (err) console.error('关闭数据库时出错:', err);
           resolve();
         });
       });
