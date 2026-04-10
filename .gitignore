@@ -38,3 +38,4 @@ test-*.html
 test-*.js
 *.test.json
 *.csv
+.vercel
