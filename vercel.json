@@ -1,1 +1,1 @@
-{"version": 2, "name": "renyuan-platform", "builds": [{"src": "package.json", "use": "@vercel/static-build", "config": {"distDir": "dist"}}], "routes": [{"src": "/(.*)", "dest": "/index.html"}], "env": {"VITE_API_URL": "https://your-api.onrender.com/api"}, "git": {"deploymentEnabled": true}}
+{"framework": "vite", "buildCommand": "npm run build", "outputDirectory": "dist", "rewrites": [{"source": "/(.*)", "destination": "/index.html"}]}
