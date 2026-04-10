@@ -128,7 +128,12 @@ async function initDatabase() {
 
     console.log('✅ 数据库初始化完成！\n');
   } catch (error) {
-    console.error('❌ 数据库初始化失败:', error.message);
+    console.error('❌ 数据库初始化失败:');
+    console.error('   错误详情:', error.message);
+    console.error('   完整错误:', error.toString());
+    if (error.stack) {
+      console.error('   堆栈:', error.stack);
+    }
     process.exit(1);
   }
 }
