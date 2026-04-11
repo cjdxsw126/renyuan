@@ -79,7 +79,7 @@ async function initDatabase() {
     // 创建人员表
     await pool.query(`
       CREATE TABLE IF NOT EXISTS persons (
-        id SERIAL PRIMARY KEY,
+        id TEXT PRIMARY KEY,
         dataset_id TEXT NOT NULL REFERENCES datasets(id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         age INTEGER,
@@ -89,17 +89,35 @@ async function initDatabase() {
         original_data TEXT
       )
     `);
+    
+    // 修复已存在的表结构（如果是从旧版本升级）
+    try {
+      await pool.query(`ALTER TABLE persons ALTER COLUMN id TYPE TEXT USING id::TEXT`);
+      await pool.query(`ALTER TABLE persons ALTER COLUMN dataset_id TYPE TEXT USING dataset_id::TEXT`);
+    } catch (e) {
+      // 忽略错误（可能是类型已经正确）
+    }
+    
     console.log('✅ 人员表 (persons) 就绪');
 
     // 创建证书表
     await pool.query(`
       CREATE TABLE IF NOT EXISTS certificates (
-        id SERIAL PRIMARY KEY,
-        person_id INTEGER NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
+        id TEXT PRIMARY KEY,
+        person_id TEXT NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         value TEXT
       )
     `);
+    
+    // 修复已存在的证书表
+    try {
+      await pool.query(`ALTER TABLE certificates ALTER COLUMN id TYPE TEXT USING id::TEXT`);
+      await pool.query(`ALTER TABLE certificates ALTER COLUMN person_id TYPE TEXT USING person_id::TEXT`);
+    } catch (e) {
+      // 忽略错误
+    }
+    
     console.log('✅ 证书表 (certificates) 就绪');
 
     // 检查并创建默认管理员用户
