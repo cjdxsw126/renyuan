@@ -83,7 +83,7 @@ router.post('/login', async (req, res) => {
     const { username, password } = req.body;
 
     // 查找用户
-    const userResult = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
+    const userResult = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
     if (userResult.rows.length === 0) {
       return res.status(401).json({ error: '用户名或密码错误' });
     }
@@ -102,8 +102,8 @@ router.post('/login', async (req, res) => {
     }
 
     // 获取权限
-    const permissionResult = await pool.query('SELECT * FROM permissions WHERE user_id = ?', [user.id]);
-    const permissions = permissionResult.rows[0];
+    const permissionResult = await pool.query('SELECT * FROM permissions WHERE user_id = $1', [user.id]);
+    const permissions = permissionResult.rows[0] || {};
 
     // 生成令牌
     const token = generateToken(user);
