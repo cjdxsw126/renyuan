@@ -44,7 +44,7 @@ router.post('/register', async (req, res) => {
     );
 
     // 获取创建的用户
-    const userResult = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
+    const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
     const user = userResult.rows[0];
 
     // 获取权限
