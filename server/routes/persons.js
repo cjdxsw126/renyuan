@@ -57,7 +57,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// 创建人员（简化版，无事务）
+// 创建人员（超简化版）
 router.post('/', async (req, res) => {
   try {
     const { dataset_id, name, age, education, major, employee_id, original_data, certificates } = req.body;
@@ -65,9 +65,9 @@ router.post('/', async (req, res) => {
     const originalDataStr = original_data ? JSON.stringify(original_data) : null;
     const personId = 'person-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
 
-    const result = await pool.query(
-      'INSERT INTO persons (id, dataset_id, name, age, education, major, employee_id, original_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-      [personId, dataset_id, name, age, education, major || null, employee_id, originalDataStr]
+    await pool.query(
+      'INSERT INTO persons (id, dataset_id, name, age, education, major, employee_id, original_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+      [personId, dataset_id, name, age, education || null, major || null, employee_id || null, originalDataStr]
     );
 
     const createdCertificates = [];
@@ -76,32 +76,32 @@ router.post('/', async (req, res) => {
         const certId = 'cert-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
         await pool.query(
           'INSERT INTO certificates (id, person_id, name, value) VALUES ($1, $2, $3, $4)',
-          [certId, personId, cert.name, cert.value]
+          [certId, personId, cert.name, cert.value || null]
         );
         createdCertificates.push({ id: certId, person_id: personId, name: cert.name, value: cert.value });
       }
     }
 
-    // 更新数据集计数
     await pool.query('UPDATE datasets SET count = count + 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1', [dataset_id]);
 
-    const person = result.rows[0];
-    if (person.original_data) {
-      try {
-        person.original_data = JSON.parse(person.original_data);
-      } catch (e) {
-        console.error('Error parsing original_data:', e);
-      }
-    }
-
-    res.json({ ...person, certificates: createdCertificates });
+    res.json({
+      id: personId,
+      dataset_id,
+      name,
+      age,
+      education,
+      major,
+      employee_id,
+      original_data,
+      certificates: createdCertificates
+    });
   } catch (error) {
     console.error('Create person error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// 批量创建人员（简化版，无事务）
+// 批量创建人员（超简化版）
 router.post('/batch', async (req, res) => {
   try {
     const { dataset_id, persons } = req.body;
@@ -118,40 +118,36 @@ router.post('/batch', async (req, res) => {
       const originalDataStr = original_data ? JSON.stringify(original_data) : null;
       const personId = 'person-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
 
-      try {
-        const result = await pool.query(
-          'INSERT INTO persons (id, dataset_id, name, age, education, major, employee_id, original_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-          [personId, dataset_id, name, age, education, major || null, employee_id, originalDataStr]
-        );
+      await pool.query(
+        'INSERT INTO persons (id, dataset_id, name, age, education, major, employee_id, original_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+        [personId, dataset_id, name, age || null, education || null, major || null, employee_id || null, originalDataStr]
+      );
 
-        const createdCertificates = [];
-        if (certificates && certificates.length > 0) {
-          for (const cert of certificates) {
-            const certId = 'cert-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-            await pool.query(
-              'INSERT INTO certificates (id, person_id, name, value) VALUES ($1, $2, $3, $4)',
-              [certId, personId, cert.name, cert.value]
-            );
-            createdCertificates.push({ id: certId, person_id: personId, name: cert.name, value: cert.value });
-          }
+      const createdCertificates = [];
+      if (certificates && certificates.length > 0) {
+        for (const cert of certificates) {
+          const certId = 'cert-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+          await pool.query(
+            'INSERT INTO certificates (id, person_id, name, value) VALUES ($1, $2, $3, $4)',
+            [certId, personId, cert.name, cert.value || null]
+          );
+          createdCertificates.push({ id: certId, person_id: personId, name: cert.name, value: cert.value });
         }
-
-        const person = result.rows[0];
-        if (person.original_data) {
-          try {
-            person.original_data = JSON.parse(person.original_data);
-          } catch (e) {
-            console.error('Error parsing original_data:', e);
-          }
-        }
-        createdPersons.push({ ...person, certificates: createdCertificates });
-      } catch (err) {
-        console.error('Error creating person:', err);
-        throw err;
       }
+
+      createdPersons.push({
+        id: personId,
+        dataset_id,
+        name,
+        age,
+        education,
+        major,
+        employee_id,
+        original_data,
+        certificates: createdCertificates
+      });
     }
 
-    // 更新数据集计数
     await pool.query('UPDATE datasets SET count = count + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [persons.length, dataset_id]);
 
     res.json(createdPersons);
@@ -175,7 +171,7 @@ router.put('/:id', async (req, res) => {
       updates.push(`name = $${paramIndex++}`);
       params.push(name);
     }
-    if (age !== undefined) {
+    if (age !== undefined && age !== null) {
       updates.push(`age = $${paramIndex++}`);
       params.push(age);
     }
@@ -183,7 +179,7 @@ router.put('/:id', async (req, res) => {
       updates.push(`education = $${paramIndex++}`);
       params.push(education);
     }
-    if (major !== undefined) {
+    if (major !== undefined && major !== null) {
       updates.push(`major = $${paramIndex++}`);
       params.push(major);
     }
@@ -209,7 +205,7 @@ router.put('/:id', async (req, res) => {
           const certId = 'cert-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
           await pool.query(
             'INSERT INTO certificates (id, person_id, name, value) VALUES ($1, $2, $3, $4)',
-            [certId, id, cert.name, cert.value]
+            [certId, id, cert.name, cert.value || null]
           );
         }
       }
