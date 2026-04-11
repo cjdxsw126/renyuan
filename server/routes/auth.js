@@ -20,7 +20,7 @@ router.post('/register', async (req, res) => {
     const { username, password, role } = req.body;
 
     // 检查用户名是否已存在
-    const existingUser = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
+    const existingUser = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
     if (existingUser.rows.length > 0) {
       return res.status(400).json({ error: '用户名已存在' });
     }
@@ -31,15 +31,15 @@ router.post('/register', async (req, res) => {
 
     // 创建用户
     const userId = Date.now().toString();
-    await pool.run(
-      'INSERT INTO users (id, username, password, role, enabled) VALUES (?, ?, ?, ?, ?)',
+    await pool.query(
+      'INSERT INTO users (id, username, password, role, enabled) VALUES ($1, $2, $3, $4, $5)',
       [userId, username, hashedPassword, role || 'member', 1]
     );
 
     // 创建权限
     const isAdmin = (role || 'member') === 'admin';
-    await pool.run(
-      'INSERT INTO permissions (id, user_id, file_upload, search, download, admin_panel, data_delete) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    await pool.query(
+      'INSERT INTO permissions (id, user_id, file_upload, search, download, admin_panel, data_delete) VALUES ($1, $2, $3, $4, $5, $6, $7)',
       [Date.now().toString(), userId, 1, 1, 1, isAdmin ? 1 : 0, isAdmin ? 1 : 0]
     );
 
@@ -48,7 +48,7 @@ router.post('/register', async (req, res) => {
     const user = userResult.rows[0];
 
     // 获取权限
-    const permissionResult = await pool.query('SELECT * FROM permissions WHERE user_id = ?', [userId]);
+    const permissionResult = await pool.query('SELECT * FROM permissions WHERE user_id = $1', [userId]);
     const permissions = permissionResult.rows[0];
 
     // 生成令牌

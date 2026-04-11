@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const datasetResult = await pool.query('SELECT * FROM datasets WHERE id = ?', [id]);
+    const datasetResult = await pool.query('SELECT * FROM datasets WHERE id = $1', [id]);
 
     if (datasetResult.rows.length === 0) {
       return res.status(404).json({ error: 'Dataset not found' });
@@ -37,13 +37,13 @@ router.post('/', async (req, res) => {
     const { name, count, certificate_options } = req.body;
 
     const datasetId = Date.now().toString();
-    await pool.run(
-      'INSERT INTO datasets (id, name, count) VALUES (?, ?, ?)',
+    await pool.query(
+      'INSERT INTO datasets (id, name, count) VALUES ($1, $2, $3)',
       [datasetId, name, count || 0]
     );
 
     // 获取创建的数据集
-    const datasetResult = await pool.query('SELECT * FROM datasets WHERE id = ?', [datasetId]);
+    const datasetResult = await pool.query('SELECT * FROM datasets WHERE id = $1', [datasetId]);
     const dataset = datasetResult.rows[0];
     
     // 添加证书选项到返回结果
@@ -65,7 +65,7 @@ router.put('/:id', async (req, res) => {
     const { name, count } = req.body;
 
     // 检查数据集是否存在
-    const existingDataset = await pool.query('SELECT * FROM datasets WHERE id = ?', [id]);
+    const existingDataset = await pool.query('SELECT * FROM datasets WHERE id = $1', [id]);
     if (existingDataset.rows.length === 0) {
       return res.status(404).json({ error: 'Dataset not found' });
     }
@@ -73,25 +73,28 @@ router.put('/:id', async (req, res) => {
     // 构建更新语句
     const updates = [];
     const params = [];
+    let paramIndex = 1;
 
     if (name) {
-      updates.push(`name = ?`);
+      updates.push(`name = $${paramIndex}`);
       params.push(name);
+      paramIndex++;
     }
 
     if (count !== undefined) {
-      updates.push(`count = ?`);
+      updates.push(`count = $${paramIndex}`);
       params.push(count);
+      paramIndex++;
     }
 
     updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    
+    const updateQuery = `UPDATE datasets SET ${updates.join(', ')} WHERE id = $${paramIndex}`;
     params.push(id);
-
-    const updateQuery = `UPDATE datasets SET ${updates.join(', ')} WHERE id = ?`;
-    await pool.run(updateQuery, params);
+    await pool.query(updateQuery, params);
 
     // 获取更新后的数据集
-    const updatedDatasetResult = await pool.query('SELECT * FROM datasets WHERE id = ?', [id]);
+    const updatedDatasetResult = await pool.query('SELECT * FROM datasets WHERE id = $1', [id]);
     res.json(updatedDatasetResult.rows[0]);
   } catch (error) {
     console.error('Update dataset error:', error);
@@ -105,13 +108,13 @@ router.delete('/:id', async (req, res) => {
     const { id } = req.params;
 
     // 检查数据集是否存在
-    const existingDataset = await pool.query('SELECT * FROM datasets WHERE id = ?', [id]);
+    const existingDataset = await pool.query('SELECT * FROM datasets WHERE id = $1', [id]);
     if (existingDataset.rows.length === 0) {
       return res.status(404).json({ error: 'Dataset not found' });
     }
 
     // 删除数据集（级联删除关联的人员和证书）
-    await pool.run('DELETE FROM datasets WHERE id = ?', [id]);
+    await pool.query('DELETE FROM datasets WHERE id = $1', [id]);
 
     res.json({ message: 'Dataset deleted successfully' });
   } catch (error) {
