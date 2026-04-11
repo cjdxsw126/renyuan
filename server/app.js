@@ -142,6 +142,42 @@ async function initDatabase() {
       console.log('\n🎉 默认管理员账户已创建！');
       console.log('   用户名: admin');
       console.log('   密码: password\n');
+    } else {
+      // ✅ 关键修复：确保已有用户的权限记录存在且正确
+      const existingAdmin = adminCheck.rows[0];
+      console.log(`\n✅ 管理员账户已存在 (ID: ${existingAdmin.id})`);
+      
+      // 检查权限记录
+      const permCheck = await pool.query('SELECT * FROM permissions WHERE user_id = $1', [existingAdmin.id]);
+      
+      if (permCheck.rows.length === 0) {
+        // 权限记录缺失 - 创建它
+        console.log('⚠️  发现问题：管理员缺少权限记录，正在修复...');
+        
+        await pool.query(
+          `INSERT INTO permissions (id, user_id, file_upload, search, download, admin_panel, data_delete) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          ['perm-fix-' + Date.now(), existingAdmin.id, 1, 1, 1, 1, 1]
+        );
+        
+        console.log('✅ 权限记录已修复！');
+      } else {
+        // 更新权限（确保所有权限都开启）
+        await pool.query(
+          `UPDATE permissions SET 
+           file_upload = COALESCE(file_upload, 1), 
+           search = COALESCE(search, 1), 
+           download = COALESCE(download, 1), 
+           admin_panel = CASE WHEN role = 'admin' THEN 1 ELSE COALESCE(admin_panel, 0) END,
+           data_delete = CASE WHEN role = 'admin' THEN 1 ELSE COALESCE(data_delete, 0) END
+           FROM users WHERE permissions.user_id = users.id AND users.username = 'admin'`
+        );
+        
+        console.log('✅ 权限记录已验证并更新');
+      }
+      
+      console.log('   用户名: admin');
+      console.log('   密码: password\n');
     }
 
     console.log('✅ 数据库初始化完成！\n');
