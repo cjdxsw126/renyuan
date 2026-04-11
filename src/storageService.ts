@@ -52,7 +52,7 @@ const getApiBaseUrl = () => {
   if (isProduction) {
     // 在生产环境中，API 应该部署在同一个域名下，或者使用配置的 URL
     // 这里假设 API 部署在 Render 上，URL 会在 .env 中配置
-    return import.meta.env.VITE_API_URL || 'https://your-api.onrender.com/api';
+    return import.meta.env.VITE_API_URL || 'https://xuanren-1.onrender.com/api';
   }
   
   // 本地开发环境

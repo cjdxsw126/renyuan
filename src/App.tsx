@@ -1185,7 +1185,7 @@ const App: React.FC = () => {
       const isProduction = window.location.hostname !== 'localhost' && 
                            window.location.hostname !== '127.0.0.1';
       if (isProduction) {
-        return import.meta.env.VITE_API_URL || 'https://your-api.onrender.com/api';
+        return import.meta.env.VITE_API_URL || 'https://xuanren-1.onrender.com/api';
       }
       return 'http://localhost:3001/api';
     };
