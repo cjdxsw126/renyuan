@@ -7,10 +7,12 @@ const router = express.Router();
 
 // 生成JWT令牌
 function generateToken(user) {
+  const secret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+  const expiresIn = process.env.JWT_EXPIRES_IN || '24h';
   return jwt.sign(
     { id: user.id, username: user.username, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN }
+    secret,
+    { expiresIn }
   );
 }
 
