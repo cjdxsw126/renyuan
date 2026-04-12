@@ -1,4 +1,4 @@
-const express = require('express');
+onst express = require('express');
 const pool = require('../db');
 
 const router = express.Router();
@@ -44,18 +44,21 @@ router.post('/', async (req, res) => {
   try {
     const { dataset_id, name, age, education, major, employee_id, original_data, certificates } = req.body;
     const originalDataStr = original_data ? JSON.stringify(original_data) : null;
-    const personId = 'person-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-    await pool.query(
-      'INSERT INTO persons (id, dataset_id, name, age, education, major, employee_id, original_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-      [personId, dataset_id, name, age || null, education || null, major || null, employee_id || null, originalDataStr]
+
+    const result = await pool.query(
+      'INSERT INTO persons (dataset_id, name, age, education, major, employee_id, original_data) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
+      [dataset_id, name, age || null, education || null, major || null, employee_id || null, originalDataStr]
     );
+    const personId = result.rows[0].id;
+
     const createdCertificates = [];
     if (certificates && certificates.length > 0) {
       for (const cert of certificates) {
-        const certId = 'cert-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-        await pool.query('INSERT INTO certificates (id, person_id, name, value) VALUES ($1, $2, $3, $4)',
-          [certId, personId, cert.name, cert.value || null]);
-        createdCertificates.push({ id: certId, person_id: personId, name: cert.name, value: cert.value });
+        const certResult = await pool.query(
+          'INSERT INTO certificates (person_id, name, value) VALUES ($1, $2, $3) RETURNING id',
+          [personId, cert.name, cert.value || null]
+        );
+        createdCertificates.push({ id: certResult.rows[0].id, person_id: personId, name: cert.name, value: cert.value });
       }
     }
     await pool.query('UPDATE datasets SET count = count + 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1', [dataset_id]);
@@ -72,46 +75,47 @@ router.post('/batch', async (req, res) => {
     if (!persons || persons.length === 0) return res.status(400).json({ error: 'No persons to create' });
     console.log(`[Batch Import] 开始批量导入 ${persons.length} 条数据...`);
     const startTime = Date.now();
-    const personIds = [];
+
+    // 批量插入人员（让数据库自动生成自增 ID）
     const personValues = [];
-    for (const personData of persons) {
-      const { name, age, education, major, employee_id, original_data } = personData;
-      const personId = 'person-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-      personIds.push(personId);
-      const originalDataStr = original_data ? JSON.stringify(original_data) : null;
-      personValues.push(personId, dataset_id, name || null, age || null, education || null, major || null, employee_id || null, originalDataStr);
+    for (const p of persons) {
+      const originalDataStr = p.original_data ? JSON.stringify(p.original_data) : null;
+      personValues.push([dataset_id, p.name || null, p.age || null, p.education || null, p.major || null, p.employee_id || null, originalDataStr]);
     }
-    const personInsertSQL = `INSERT INTO persons (id, dataset_id, name, age, education, major, employee_id, original_data) VALUES ${persons.map((_, i) => {
-      const offset = i * 8;
-      return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8})`;
-    }).join(', ')}`;
-    await pool.query(personInsertSQL, personValues);
+
+    const personInsertSQL = `INSERT INTO persons (dataset_id, name, age, education, major, employee_id, original_data) VALUES ${persons.map((_, i) => {
+      const offset = i * 7;
+      return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`;
+    }).join(', ')} RETURNING id`;
+
+    const flatValues = personValues.flat();
+    const personResult = await pool.query(personInsertSQL, flatValues);
+    const personIds = personResult.rows.map(r => r.id);
     console.log(`[Batch Import] 人员插入完成: ${persons.length} 条, 耗时: ${Date.now() - startTime}ms`);
+
+    // 批量插入证书
     const allCertificates = [];
     for (let i = 0; i < persons.length; i++) {
       const person = persons[i];
       if (person.certificates && person.certificates.length > 0) {
         for (const cert of person.certificates) {
-          allCertificates.push({
-            id: 'cert-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
-            person_id: personIds[i],
-            name: cert.name || cert,
-            value: cert.value || (typeof cert === 'string' ? '有' : null)
-          });
+          allCertificates.push([personIds[i], cert.name || cert, cert.value || (typeof cert === 'string' ? '有' : null)]);
         }
       }
     }
+
     if (allCertificates.length > 0) {
-      const certValues = allCertificates.flatMap(cert => [cert.id, cert.person_id, cert.name, cert.value]);
-      const certInsertSQL = `INSERT INTO certificates (id, person_id, name, value) VALUES ${allCertificates.map((_, i) => {
-        const offset = i * 4;
-        return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4})`;
+      const certInsertSQL = `INSERT INTO certificates (person_id, name, value) VALUES ${allCertificates.map((_, i) => {
+        const offset = i * 3;
+        return `($${offset + 1}, $${offset + 2}, $${offset + 3})`;
       }).join(', ')}`;
-      await pool.query(certInsertSQL, certValues);
+      await pool.query(certInsertSQL, allCertificates.flat());
       console.log(`[Batch Import] 证书插入完成: ${allCertificates.length} 条`);
     }
+
     await pool.query('UPDATE datasets SET count = count + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [persons.length, dataset_id]);
     console.log(`[Batch Import] 批量导入完成！总计: ${persons.length} 人员 + ${allCertificates.length} 证书, 总耗时: ${Date.now() - startTime}ms`);
+
     res.json(persons.map((p, i) => ({ id: personIds[i], dataset_id, name: p.name, age: p.age, education: p.education, major: p.major, employee_id: p.employee_id })));
   } catch (error) {
     console.error('Batch create persons error:', error);
@@ -141,8 +145,7 @@ router.put('/:id', async (req, res) => {
       await pool.query('DELETE FROM certificates WHERE person_id = $1', [id]);
       if (certificates.length > 0) {
         for (const cert of certificates) {
-          const certId = 'cert-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-          await pool.query('INSERT INTO certificates (id, person_id, name, value) VALUES ($1, $2, $3, $4)', [certId, id, cert.name, cert.value || null]);
+          await pool.query('INSERT INTO certificates (person_id, name, value) VALUES ($1, $2, $3)', [id, cert.name, cert.value || null]);
         }
       }
     }
