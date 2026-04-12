@@ -6,16 +6,43 @@ const router = express.Router();
 router.get('/dataset/:datasetId', async (req, res) => {
   try {
     const { datasetId } = req.params;
+
+    // 批量查询所有人员和证书（优化：减少数据库往返）
     const personsResult = await pool.query('SELECT * FROM persons WHERE dataset_id = $1', [datasetId]);
-    const personsWithCertificates = await Promise.all(
-      personsResult.rows.map(async (person) => {
-        const certificatesResult = await pool.query('SELECT * FROM certificates WHERE person_id = $1', [person.id]);
-        if (person.original_data) {
-          try { person.original_data = JSON.parse(person.original_data); } catch (e) {}
-        }
-        return { ...person, certificates: certificatesResult.rows };
-      })
+
+    if (personsResult.rows.length === 0) {
+      return res.json([]);
+    }
+
+    // 一次性获取所有相关证书
+    const personIds = personsResult.rows.map(p => p.id);
+    const certificatesResult = await pool.query(
+      'SELECT * FROM certificates WHERE person_id = ANY($1)',
+      [personIds]
     );
+
+    // 按 person_id 分组证书
+    const certsByPersonId = {};
+    for (const cert of certificatesResult.rows) {
+      if (!certsByPersonId[cert.person_id]) {
+        certsByPersonId[cert.person_id] = [];
+      }
+      certsByPersonId[cert.person_id].push(cert);
+    }
+
+    // 组装结果
+    const personsWithCertificates = personsResult.rows.map(person => {
+      if (person.original_data) {
+        try {
+          person.original_data = JSON.parse(person.original_data);
+        } catch (e) {}
+      }
+      return {
+        ...person,
+        certificates: certsByPersonId[person.id] || []
+      };
+    });
+
     res.json(personsWithCertificates);
   } catch (error) {
     console.error('Get persons error:', error);
@@ -27,12 +54,19 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const personResult = await pool.query('SELECT * FROM persons WHERE id = $1', [id]);
-    if (personResult.rows.length === 0) return res.status(404).json({ error: 'Person not found' });
+
+    if (personResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Person not found' });
+    }
+
     const person = personResult.rows[0];
     if (person.original_data) {
-      try { person.original_data = JSON.parse(person.original_data); } catch (e) {}
+      try {
+        person.original_data = JSON.parse(person.original_data);
+      } catch (e) {}
     }
     const certificatesResult = await pool.query('SELECT * FROM certificates WHERE person_id = $1', [id]);
+
     res.json({ ...person, certificates: certificatesResult.rows });
   } catch (error) {
     console.error('Get person error:', error);
@@ -76,7 +110,6 @@ router.post('/batch', async (req, res) => {
     console.log(`[Batch Import] 开始批量导入 ${persons.length} 条数据...`);
     const startTime = Date.now();
 
-    // 批量插入人员（让数据库自动生成自增 ID）
     const personValues = [];
     for (const p of persons) {
       const originalDataStr = p.original_data ? JSON.stringify(p.original_data) : null;
@@ -93,7 +126,6 @@ router.post('/batch', async (req, res) => {
     const personIds = personResult.rows.map(r => r.id);
     console.log(`[Batch Import] 人员插入完成: ${persons.length} 条, 耗时: ${Date.now() - startTime}ms`);
 
-    // 批量插入证书
     const allCertificates = [];
     for (let i = 0; i < persons.length; i++) {
       const person = persons[i];
