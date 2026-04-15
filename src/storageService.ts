@@ -40,23 +40,10 @@ export interface DataSet {
 
 // API基础URL - 支持本地开发和云部署
 const getApiBaseUrl = () => {
-  // 优先使用环境变量
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  
-  // 如果是生产环境（GitHub Pages/Vercel），使用相对路径或配置的 URL
-  const isProduction = window.location.hostname !== 'localhost' && 
-                       window.location.hostname !== '127.0.0.1';
-  
-  if (isProduction) {
-    // 在生产环境中，API 应该部署在同一个域名下，或者使用配置的 URL
-    // 这里假设 API 部署在 Render 上，URL 会在 .env 中配置
-    return import.meta.env.VITE_API_URL || 'https://xuanren-1.onrender.com/api';
-  }
-  
-  // 本地开发环境
-  return 'http://localhost:3001/api';
+  return 'https://xuanren-1.onrender.com/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -350,6 +337,72 @@ export const storageService = {
       console.log('✅ 所有本地数据已清空');
     } catch (e) {
       console.error('❌ 清空数据失败', e);
+    }
+  },
+
+  // AI 智能搜索
+  smartSearch: async (query: string, provider: string = 'deepseek', config?: any): Promise<any> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/ai/smart-search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, provider, config })
+      });
+      
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('json')) {
+        const text = await response.text();
+        if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+          throw new Error('AI 服务未部署，请先将代码上传到 GitHub 并重新部署 Render');
+        }
+        throw new Error(`服务器返回异常响应 (${response.status})`);
+      }
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || `请求失败 (${response.status})`);
+      }
+      const result = await response.json();
+      console.log('✅ AI 智能搜索成功:', result);
+      return result;
+    } catch (e: any) {
+      console.error('❌ AI 智能搜索失败', e);
+      if (e.message?.includes('fetch') || e.message?.includes('network') || e.message?.includes('Failed to fetch')) {
+        throw new Error('无法连接到 AI 服务，请检查网络连接');
+      }
+      throw e;
+    }
+  },
+
+  // 获取可用的 AI 提供商列表
+  getAIProviders: async (): Promise<any[]> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/ai/providers`);
+      if (!response.ok) throw new Error('Failed to fetch providers');
+      return await response.json();
+    } catch (e) {
+      console.error('❌ 获取 AI 提供商失败', e);
+      return [];
+    }
+  },
+
+  // 保存 AI 配置到本地
+  saveAIConfig: (config: any): void => {
+    try {
+      localStorage.setItem('ai_config', JSON.stringify(config));
+      console.log('✅ AI 配置已保存');
+    } catch (e) {
+      console.error('❌ 保存 AI 配置失败', e);
+    }
+  },
+
+  // 获取本地保存的 AI 配置
+  getAIConfig: (): any => {
+    try {
+      const config = localStorage.getItem('ai_config');
+      return config ? JSON.parse(config) : null;
+    } catch (e) {
+      return null;
     }
   }
 };
