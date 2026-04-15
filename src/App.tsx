@@ -118,6 +118,16 @@ const App: React.FC = () => {
   const [currentDataSetId, setCurrentDataSetId] = useState<string | null>(null);
   const [showDataSetModal, setShowDataSetModal] = useState<boolean>(false);
   
+  // AI 智能搜索状态
+  const [smartQuery, setSmartQuery] = useState<string>('');
+  const [isSmartSearching, setIsSmartSearching] = useState<boolean>(false);
+  const [showAISettings, setShowAISettings] = useState<boolean>(false);
+  const [aiProvider, setAiProvider] = useState<string>('deepseek');
+  const [aiApiKey, setAiApiKey] = useState<string>('');
+  const [aiBaseUrl, setAiBaseUrl] = useState<string>('');
+  const [aiModel, setAiModel] = useState<string>('');
+  const [aiResult, setAiResult] = useState<any>(null);
+  
   // 定义需要隐藏的列
   const hiddenColumns = ['PMP取证时间', 'PMP取证年限（年）', 'PMP是否过期'];
 
@@ -1052,17 +1062,20 @@ const App: React.FC = () => {
               }
             };
             
-            // 检查是否已有数据集合
-            if (dataSets.length > 0 && currentDataSetId) {
-              // 询问用户是否覆盖现有数据
-              if (window.confirm(`当前已有数据集合"${dataSets.find(ds => ds.id === currentDataSetId)?.name}"，是否覆盖现有数据？\n\n点击"确定"覆盖现有数据，点击"取消"创建新的数据集合。`)) {
+            // 检查是否有同名文件已存在
+            const existingDatasetWithSameName = dataSets.find(ds => ds.name === file.name);
+            
+            if (existingDatasetWithSameName) {
+              // 文件名完全相同，询问是否覆盖元数据
+              if (window.confirm(`文件名 "${file.name}" 已存在。是否覆盖现有文件的元数据？\n\n点击"确定"覆盖，点击"取消"导入为新文件。`)) {
+                setCurrentDataSetId(existingDatasetWithSameName.id);
                 handleDataSetCreation('overwrite');
               } else {
                 const dataSetName = prompt('请输入新数据集合的名称:', file.name);
                 handleDataSetCreation('new', dataSetName || file.name);
               }
             } else {
-              // 直接创建新的数据集合
+              // 文件名不同，直接创建新的数据集合
               handleDataSetCreation('new', file.name);
             }
           }, 500);
@@ -1182,12 +1195,7 @@ const App: React.FC = () => {
       if (import.meta.env.VITE_API_URL) {
         return import.meta.env.VITE_API_URL;
       }
-      const isProduction = window.location.hostname !== 'localhost' && 
-                           window.location.hostname !== '127.0.0.1';
-      if (isProduction) {
-        return import.meta.env.VITE_API_URL || 'https://xuanren-1.onrender.com/api';
-      }
-      return 'http://localhost:3001/api';
+      return 'https://xuanren-1.onrender.com/api';
     };
 
     try {
@@ -1539,6 +1547,62 @@ const App: React.FC = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [blurTimeout]);
+
+  // AI 智能搜索处理
+  const handleSmartSearch = async () => {
+    if (!smartQuery.trim()) {
+      displayAlert('请输入筛选条件', 'error');
+      return;
+    }
+
+    setIsSmartSearching(true);
+    setAiResult(null);
+
+    try {
+      const config: any = { apiKey: aiApiKey };
+      if (aiBaseUrl) config.baseUrl = aiBaseUrl;
+      if (aiModel) config.model = aiModel;
+
+      const result = await storageService.smartSearch(smartQuery, aiProvider, config);
+      
+      setAiResult(result);
+      
+      if (result.success && result.filters) {
+        const f = result.filters;
+        
+        setFilters(prev => ({
+          ...prev,
+          name: f.name || '',
+          ageMin: f.age_min !== undefined ? String(f.age_min) : prev.ageMin,
+          ageMax: f.age_max !== undefined ? String(f.age_max) : prev.ageMax,
+          education: f.education ? [f.education] : prev.education,
+          major: f.major ? [f.major] : prev.major,
+          certificate: f.certificates && f.certificates.length > 0 ? f.certificates[0] : prev.certificate
+        }));
+
+        displayAlert(`AI 解析成功：${result.explanation || '已自动填入筛选条件'}`, 'success');
+        addLog(`AI 智能搜索: "${smartQuery}" → ${JSON.stringify(result.filters)}`);
+      }
+    } catch (error: any) {
+      console.error('Smart search error:', error);
+      if (error.message?.includes('未配置 API Key')) {
+        setShowAISettings(true);
+        displayAlert('请先配置 AI 服务 API Key', 'info');
+      } else {
+        displayAlert(error.message || '智能搜索失败，请重试', 'error');
+      }
+    } finally {
+      setIsSmartSearching(false);
+    }
+  };
+
+  // 应用 AI 解析结果并执行查询
+  const applyAIResultAndSearch = () => {
+    if (aiResult?.filters) {
+      handleSearch();
+      setAiResult(null);
+    }
+  };
 
   // 手动执行筛选 - 优化版本
   const handleSearch = () => {
@@ -2225,13 +2289,35 @@ const App: React.FC = () => {
                       borderRadius: '4px',
                       backgroundColor: currentDataSetId === dataSet.id ? '#fff5f5' : '#ffffff',
                       cursor: 'pointer'
-                    }} onClick={() => {
+                    }} onClick={async () => {
                       setCurrentDataSetId(dataSet.id);
-                      setPeople(dataSet.data || []);
-                      setCertificateOptions(dataSet.certificateOptions);
-                      setFilteredPeople([]);
                       setShowDataSetModal(false);
-                      displayAlert(`已切换到数据集: ${dataSet.name}`, 'success');
+                      displayAlert(`正在加载数据集: ${dataSet.name}...`, 'info');
+                      try {
+                        const persons = await storageService.getPersonsByDatasetId(dataSet.id);
+                        setPeople(persons || []);
+                        if (persons && persons.length > 0) {
+                          const certs = new Set<string>();
+                          persons.forEach((p: any) => {
+                            (p.certificates || []).forEach((c: any) => {
+                              if (typeof c === 'string') certs.add(c);
+                              else if (c && c.name) certs.add(c.name);
+                            });
+                            if (p.major) certs.add(p.major);
+                          });
+                          setCertificateOptions([...certs]);
+                        } else {
+                          setCertificateOptions([]);
+                        }
+                        setFilteredPeople([]);
+                        displayAlert(`已切换到数据集: ${dataSet.name} (${persons?.length || 0} 条记录)`, 'success');
+                        addLog(`切换到数据集: ${dataSet.name}`);
+                      } catch (error) {
+                        console.error('切换数据集失败:', error);
+                        setPeople([]);
+                        setCertificateOptions([]);
+                        displayAlert('加载数据失败，请重试', 'error');
+                      }
                     }}>
                       <div style={{
                         display: 'flex',
@@ -2399,7 +2485,233 @@ const App: React.FC = () => {
       </div>
 
       {!showAdminPanel && (
-        <div className="filter-container">
+        <div>
+          {/* AI 智能搜索区域 */}
+          <div style={{
+            backgroundColor: '#f8f4f0',
+            borderRadius: '12px',
+            padding: '16px 20px',
+            marginBottom: '20px',
+            border: '2px solid #ffb3ba'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+              <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#5a3d31' }}>🤖 AI 智能筛选</span>
+              <button
+                type="button"
+                onClick={() => setShowAISettings(!showAISettings)}
+                style={{
+                  fontSize: '12px',
+                  padding: '2px 8px',
+                  backgroundColor: '#fff',
+                  border: '1px solid #ddd',
+                  borderRadius: '10px',
+                  cursor: 'pointer'
+                }}
+              >
+                ⚙️ 设置
+              </button>
+            </div>
+
+            {showAISettings && (
+              <div style={{
+                backgroundColor: '#fff',
+                borderRadius: '8px',
+                padding: '16px',
+                marginBottom: '12px',
+                border: '1px solid #ddd'
+              }}>
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '8px' }}>选择 AI 模型</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {[
+                      { id: 'deepseek', name: 'DeepSeek', desc: '推荐', color: '#4a6cf7' },
+                      { id: 'qwen', name: '通义千问', desc: '阿里云', color: '#ff6a00' },
+                      { id: 'doubao', name: '豆包', desc: '字节跳动', color: '#1677ff' },
+                      { id: 'custom', name: '自定义', desc: 'OpenAI兼容', color: '#52c41a' }
+                    ].map(model => (
+                      <button
+                        key={model.id}
+                        type="button"
+                        onClick={() => setAiProvider(model.id)}
+                        style={{
+                          padding: '8px 14px',
+                          border: `2px solid ${aiProvider === model.id ? model.color : '#ddd'}`,
+                          borderRadius: '8px',
+                          backgroundColor: aiProvider === model.id ? `${model.color}15` : '#fff',
+                          color: aiProvider === model.id ? model.color : '#555',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          fontWeight: aiProvider === model.id ? '600' : '400',
+                          transition: 'all 0.2s ease',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '2px',
+                          minWidth: '80px'
+                        }}
+                      >
+                        <span>{model.name}</span>
+                        <span style={{ fontSize: '10px', opacity: 0.7 }}>{model.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                  <div>
+                    <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '4px' }}>API Key *</label>
+                    <input
+                      type="password"
+                      value={aiApiKey}
+                      onChange={(e) => setAiApiKey(e.target.value)}
+                      placeholder={aiProvider === 'deepseek' ? 'sk-...' : aiProvider === 'qwen' ? 'sk-...' : aiProvider === 'doubao' ? '输入 API Key' : '输入 OpenAI 格式的 API Key'}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '6px',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+                  {(aiProvider === 'custom') && (
+                    <>
+                      <div style={{ marginTop: '8px' }}>
+                        <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '4px' }}>API 地址</label>
+                        <input
+                          type="text"
+                          value={aiBaseUrl}
+                          onChange={(e) => setAiBaseUrl(e.target.value)}
+                          placeholder="https://api.example.com/v1"
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: '1px solid #ddd',
+                            borderRadius: '6px',
+                            fontSize: '14px'
+                          }}
+                        />
+                      </div>
+                      <div style={{ marginTop: '8px' }}>
+                        <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '4px' }}>模型名称</label>
+                        <input
+                          type="text"
+                          value={aiModel}
+                          onChange={(e) => setAiModel(e.target.value)}
+                          placeholder="gpt-3.5-turbo"
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: '1px solid #ddd',
+                            borderRadius: '6px',
+                            fontSize: '14px'
+                          }}
+                        />
+                      </div>
+                    </>
+                  )}
+                  <div style={{ marginTop: '10px', fontSize: '11px', color: '#999', lineHeight: '1.5' }}>
+                    💡 提示：DeepSeek 可在 platform.deepseek.com 免费申请 API Key
+                  </div>
+                </div>
+              )}
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <input
+                type="text"
+                value={smartQuery}
+                onChange={(e) => setSmartQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !isSmartSearching) handleSmartSearch(); }}
+                placeholder='例如：30岁以下有PMP证书的软件工程师'
+                style={{
+                  flex: 1,
+                  padding: '10px 14px',
+                  border: '2px solid #ff6b81',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  outline: 'none'
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleSmartSearch}
+                disabled={isSmartSearching}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: isSmartSearching ? '#ccc' : '#ff6b81',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: isSmartSearching ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {isSmartSearching ? '⏳ 搜索中...' : '🔍 AI 筛选'}
+              </button>
+            </div>
+
+            {aiResult && aiResult.success && (
+              <div style={{
+                marginTop: '12px',
+                backgroundColor: '#e8f5e9',
+                borderRadius: '8px',
+                padding: '12px',
+                border: '1px solid #4caf50'
+              }}>
+                <div style={{ fontSize: '13px', color: '#2e7d32', marginBottom: '8px' }}>
+                  ✅ AI 解析结果（置信度：{Math.round((aiResult.confidence || 0) * 100)}%）
+                </div>
+                <div style={{ fontSize: '13px', color: '#555', marginBottom: '8px' }}>
+                  {aiResult.explanation}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+                  {Object.entries(aiResult.filters || {}).map(([key, val]) => {
+                    if (!val && !Array.isArray(val)) return null;
+                    const labelMap: Record<string, string> = {
+                      name: '姓名', age_min: '最小年龄', age_max: '最大年龄',
+                      education: '学历', major: '专业', certificates: '证书',
+                      tenure_min: '最小年限', tenure_max: '最大年限', is_fullTime: '全日制'
+                    };
+                    const displayVal = Array.isArray(val) ? val.join(', ') : String(val);
+                    return (
+                      <span key={key} style={{
+                        backgroundColor: '#c8e6c9',
+                        padding: '3px 8px',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        color: '#1b5e20'
+                      }}>
+                        {labelMap[key] || key}: {displayVal}
+                      </span>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={applyAIResultAndSearch}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#4caf50',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  ✓ 确认并查询
+                </button>
+              </div>
+            )}
+
+            <div style={{ fontSize: '11px', color: '#999', marginTop: '6px' }}>
+              提示：支持自然语言描述，如"35岁左右本科以上学历有PMP证书的"
+            </div>
+          </div>
+
+          {/* 原有筛选表单 */}
+          <div className="filter-container">
           <div className="form-group">
             <label htmlFor="name">姓名</label>
             <input
@@ -3437,6 +3749,7 @@ const App: React.FC = () => {
               )}
             </div>
           )}
+        </div>
         </div>
       )}
 
