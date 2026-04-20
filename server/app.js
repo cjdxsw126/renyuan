@@ -103,15 +103,18 @@ async function initDatabase() {
         `);
         existingColumns = colResult.rows.map(r => r.column_name);
 
-        // 检查并修复 id 列类型（INTEGER → TEXT）
-        const idCol = colResult.rows.find(r => r.column_name === 'id');
-        if (idCol && (idCol.data_type === 'integer' || idCol.data_type === 'bigint' || idCol.data_type === 'serial')) {
-          console.log(`⚠️  发现 id 列类型为 ${idCol.data_type}，正在修改为 TEXT...`);
-          try {
-            await pool.query(`ALTER TABLE persons ALTER COLUMN id TYPE TEXT USING id::TEXT`);
-            console.log('✅ persons.id 列已修改为 TEXT');
-          } catch (alterErr) {
-            console.error('❌ 修改 id 列失败:', alterErr.message);
+        // 检查并修复所有 TEXT 类型的列（INTEGER → TEXT）
+        const textColumns = ['id', 'dataset_id'];  // 所有应该是 TEXT 的列
+        for (const colName of textColumns) {
+          const col = colResult.rows.find(r => r.column_name === colName);
+          if (col && (col.data_type === 'integer' || col.data_type === 'bigint' || col.data_type === 'serial' || col.data_type === 'int4')) {
+            console.log(`⚠️  发现 persons.${colName} 列类型为 ${col.data_type}，正在修改为 TEXT...`);
+            try {
+              await pool.query(`ALTER TABLE persons ALTER COLUMN ${colName} TYPE TEXT USING ${colName}::TEXT`);
+              console.log(`✅ persons.${colName} 列已修改为 TEXT`);
+            } catch (alterErr) {
+              console.error(`❌ 修改 persons.${colName} 列失败:`, alterErr.message);
+            }
           }
         }
       } else {
@@ -149,22 +152,23 @@ async function initDatabase() {
       )
     `);
 
-    // 修复证书表列类型（PostgreSQL 兼容）
+    // 修复证书表列类型（PostgreSQL 兼容） - 检查所有 TEXT 列
     if (process.env.DATABASE_URL) {
       try {
         const certColResult = await pool.query(`
           SELECT column_name, data_type FROM information_schema.columns
           WHERE table_name = 'certificates'
         `);
-        for (const col of certColResult.rows) {
-          if ((col.column_name === 'id' || col.column_name === 'person_id') &&
-              (col.data_type === 'integer' || col.data_type === 'bigint')) {
-            console.log(`⚠️  证书表 ${col.column_name} 列类型为 ${col.data_type}，正在修改为 TEXT...`);
+        const certTextColumns = ['id', 'person_id'];
+        for (const colName of certTextColumns) {
+          const col = certColResult.rows.find(r => r.column_name === colName);
+          if (col && (col.data_type === 'integer' || col.data_type === 'bigint' || col.data_type === 'serial' || col.data_type === 'int4')) {
+            console.log(`⚠️  证书表 ${colName} 列类型为 ${col.data_type}，正在修改为 TEXT...`);
             try {
-              await pool.query(`ALTER TABLE certificates ALTER COLUMN ${col.column_name} TYPE TEXT USING ${col.column_name}::TEXT`);
-              console.log(`✅ certificates.${col.column_name} 列已修改为 TEXT`);
+              await pool.query(`ALTER TABLE certificates ALTER COLUMN ${colName} TYPE TEXT USING ${colName}::TEXT`);
+              console.log(`✅ certificates.${colName} 列已修改为 TEXT`);
             } catch (alterErr) {
-              console.error(`❌ 修改证书表 ${col.column_name} 列失败:`, alterErr.message);
+              console.error(`❌ 修改证书表 ${colName} 列失败:`, alterErr.message);
             }
           }
         }
