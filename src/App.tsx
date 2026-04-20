@@ -12,7 +12,322 @@ interface FilterState {
   employeeId: string;
   tenureMin: number;
   tenureMax: number;
+  graduationTenureMin: number;
+  graduationTenureMax: number;
 }
+
+const EXCLUDED_CERT_KEYWORDS = ['教育形式', '普通高等教育', '成人教育', '自学考试', '非全日制', '全日制', '函授', '网络教育'];
+
+const COMPREHENSIVE_CERT_MAPPINGS: { [key: string]: string } = {
+  '软考': '软考体系', '软考体系': '软考体系',
+  '系统分析师': '软考体系', '信息系统项目管理师': '软考体系',
+  '系统集成': '软考体系', '系统集成项目经理': '软考体系', '系统集成项目管理工程师': '软考体系',
+  '系统架构师': '软考体系', '系统架构设计师': '软考体系',
+  '网络规划设计师': '软考体系', '网络工程师': '软考体系',
+  '高级工程师': '其他 IT 认证',
+  '工信部': '工信部其他认证', '工信部其他认证': '工信部其他认证',
+  '通信': '工信部其他认证', '网络安全': '工信部其他认证',
+  '阿里云': '阿里云、腾讯云', '阿里云、腾讯云': '阿里云、腾讯云', '腾讯云': '阿里云、腾讯云',
+  '云认证': '阿里云、腾讯云', '云架构师': '阿里云、腾讯云', '云计算': '阿里云、腾讯云',
+  '华为': '华为、华三、CISP、ITSS', '华三': '华为、华三、CISP、ITSS',
+  'h3c': '华为、华三、CISP、ITSS', 'H3C': '华为、华三、CISP、ITSS',
+  'CISP': '华为、华三、CISP、ITSS', 'cisp': '华为、华三、CISP、ITSS',
+  'ITSS': '华为、华三、CISP、ITSS',
+  'ccna': '思科、甲骨文、微软、EXIN、Linux', 'ccnp': '思科、甲骨文、微软、EXIN、Linux', 'ccie': '思科、甲骨文、微软、EXIN、Linux',
+  'CCNA': '思科、甲骨文、微软、EXIN、Linux', 'CCNP': '思科、甲骨文、微软、EXIN、Linux', 'CCIE': '思科、甲骨文、微软、EXIN、Linux',
+  'ITIL': 'ITIL、CKA/CKS、Vmware、Redhead', 'CKA': 'ITIL、CKA/CKS、Vmware、Redhead',
+  'CKS': 'ITIL、CKA/CKS、Vmware、Redhead', 'Vmware': 'ITIL、CKA/CKS、Vmware、Redhead',
+  'Redhead': 'ITIL、CKA/CKS、Vmware、Redhead', 'redhat': 'ITIL、CKA/CKS、Vmware、Redhead',
+  '红帽': 'ITIL、CKA/CKS、Vmware、Redhead', '红帽认证': 'ITIL、CKA/CKS、Vmware、Redhead',
+  'RHCE': 'ITIL、CKA/CKS、Vmware、Redhead', 'RHCA': 'ITIL、CKA/CKS、Vmware、Redhead',
+  '思科': '思科、甲骨文、微软、EXIN、Linux', 'cisco': '思科、甲骨文、微软、EXIN、Linux',
+  'Cisco': '思科、甲骨文、微软、EXIN、Linux', 'Cisco思科': '思科、甲骨文、微软、EXIN、Linux',
+  '甲骨文': '思科、甲骨文、微软、EXIN、Linux', 'oracle': '思科、甲骨文、微软、EXIN、Linux',
+  'Oracle': '思科、甲骨文、微软、EXIN、Linux', 'ORACLE': '思科、甲骨文、微软、EXIN、Linux',
+  '微软': '思科、甲骨文、微软、EXIN、Linux', '微软工程师': '思科、甲骨文、微软、EXIN、Linux',
+  'EXIN': '思科、甲骨文、微软、EXIN、Linux', 'exin': '思科、甲骨文、微软、EXIN、Linux',
+  'Linux': '思科、甲骨文、微软、EXIN、Linux', 'linux': '思科、甲骨文、微软、EXIN、Linux',
+  'pmi': 'PMP', 'PMI': 'PMP',
+  'PMP': 'PMP', 'pmp': 'PMP',
+  '全媒体运营师': '全媒体运营师、NDPD等运营及产品相关计算机等级',
+  'NDPD': '全媒体运营师、NDPD等运营及产品相关计算机等级',
+  'ndpd': '全媒体运营师、NDPD等运营及产品相关计算机等级',
+  '天宫认证': '全媒体运营师、NDPD等运营及产品相关计算机等级',
+  '产品体验师': '全媒体运营师、NDPD等运营及产品相关计算机等级',
+  '产品体验': '全媒体运营师、NDPD等运营及产品相关计算机等级',
+  '计算机等级': '全媒体运营师、NDPD等运营及产品相关计算机等级',
+  '其他IT认证': '其他 IT 认证', '其他 it 认证': '其他 IT 认证',
+  '其他 IT 认证': '其他 IT 认证', '其他认证': '其他认证', '其他资质': '其他认证',
+  '财会类': '其他认证', '人力资源类': '其他认证', '教育类': '其他认证', '语言类': '其他认证'
+};
+
+const hiddenColumns = ['PMP取证时间', 'PMP取证年限（年）', 'PMP是否过期'];
+
+const BASE_CERT_CATEGORIES = [
+  '软考体系', '工信部其他认证', '阿里云、腾讯云', '华为、华三、CISP、ITSS',
+  'ITIL、CKA/CKS、Vmware、Redhead', '思科、甲骨文、微软、EXIN、Linux',
+  '全媒体运营师、NDPD等运营及产品相关计算机等级', '计算机等级', '其他 IT 认证', '其他认证', 'PMP'
+];
+
+const getPersonAge = (person: any): number => {
+  if (person.age) return parseInt(String(person.age)) || 0;
+  const od = person.originalData || {};
+  for (const key of Object.keys(od)) {
+    const k = key.replace(/\s/g, '').toLowerCase();
+    if (k === '年龄' || k === 'age' || k === '周岁' || k.includes('年龄') || k.includes('周岁')) {
+      const v = parseFloat(String(od[key]));
+      if (v && v > 0 && v < 150) return v;
+    }
+  }
+  return 0;
+};
+
+const COMPANY_TENURE_FIELDS = [
+  '入司年限', '入司年限（年）', '入司时间', '司龄'
+];
+
+const GRADUATION_TENURE_FIELDS = [
+  '毕业年限', '毕业年限（年）', '毕业时间', '工作年限', '从业年限'
+];
+
+const getPersonCompanyTenureValue = (person: any): number => {
+  if (person.tenure !== undefined && person.tenure !== null && Number(person.tenure) >= 0) {
+    return Number(person.tenure);
+  }
+  const od = person.originalData || {};
+  for (const key of Object.keys(od)) {
+    const k = key.replace(/\s/g, '').toLowerCase();
+    const matched = COMPANY_TENURE_FIELDS.find(fn =>
+      k === fn.toLowerCase() || k.includes(fn.replace(/\s/g, '').toLowerCase())
+    );
+    if (matched) {
+      const v = parseFloat(String(od[key]));
+      if (!isNaN(v) && v >= 0) return v;
+    }
+  }
+  return 0;
+};
+
+const getPersonGraduationTenureValue = (person: any): number => {
+  if (person.graduationTenure !== undefined && person.graduationTenure !== null) {
+    return Number(person.graduationTenure);
+  }
+  const od = person.originalData || {};
+  for (const key of Object.keys(od)) {
+    const k = key.replace(/\s/g, '').toLowerCase();
+    const matched = GRADUATION_TENURE_FIELDS.find(fn =>
+      k === fn.toLowerCase() || k.includes(fn.replace(/\s/g, '').toLowerCase())
+    );
+    if (matched) {
+      const v = parseFloat(String(od[key]));
+      if (!isNaN(v) && v >= 0) return v;
+    }
+  }
+  return 0;
+};
+
+const PM_QUALIFICATION_CERTS = [
+  '高级工程师',
+  '工程咨询师',
+  '信息系统项目管理师',
+  '系统集成项目经理',
+  'PMP'
+];
+
+const PM_CERT_ALIASES: { [key: string]: string[] } = {
+  '高级工程师': ['高级工程师', '高级(工程师)', '高工'],
+  '工程咨询师': ['工程咨询师', '工程咨询', '咨询工程师', '咨询师'],
+  '信息系统项目管理师': ['信息系统项目管理师', '信管师', '信息系统项目管理', '软考高级项目管理'],
+  '系统集成项目经理': ['系统集成项目经理', '系统集成项目管理工程师', '系统集成项目', '系集项目经理', '系集'],
+  'PMP': ['PMP', 'pmp', 'PMP项目管理专业人士资格认证', 'PMI']
+};
+
+const getPMQualificationScore = (person: any): { count: number; score: number; details: string[] } => {
+  const details: string[] = [];
+  let matchedCount = 0;
+  const personCertNorm = (certName: string): string => certName.replace(/\s/g, '').toLowerCase();
+
+  const allCerts: string[] = [];
+  if (Array.isArray(person.certificates)) {
+    person.certificates.forEach((c: any) => {
+      const name = typeof c === 'string' ? c : (c.name || c.value || String(c) || '');
+      if (name) allCerts.push(name);
+    });
+  }
+  if (person.certificateColumns) {
+    Object.entries(person.certificateColumns).forEach(([colName, colValue]) => {
+      const valStr = String(colValue || '').trim();
+      if (!valStr || ['否', '无', '-', '/', 'N/A'].includes(valStr) || valStr.toLowerCase() === 'no') return;
+      if (['是', '有'].includes(valStr)) {
+        allCerts.push(colName.trim());
+      } else {
+        allCerts.push(valStr);
+      }
+    });
+  }
+
+  const allCertNorms = allCerts.map(c => personCertNorm(c));
+
+  for (const pmCert of PM_QUALIFICATION_CERTS) {
+    const aliases = PM_CERT_ALIASES[pmCert] || [pmCert];
+    let found = false;
+    for (const alias of aliases) {
+      const aliasNorm = alias.replace(/\s/g, '').toLowerCase();
+      if (allCertNorms.some(cn => cn.includes(aliasNorm) || aliasNorm.includes(cn))) {
+        found = true;
+        break;
+      }
+    }
+    if (found) {
+      matchedCount++;
+      details.push(pmCert);
+    }
+  }
+
+  let score = 0;
+  if (matchedCount >= 2) score = 2;
+  else if (matchedCount >= 1) score = 1;
+
+  return { count: matchedCount, score, details };
+};
+
+interface EnrichedPerson extends Person {
+  _pmScore?: { count: number; score: number; details: string[] };
+  _certMatchInfo?: { matched: number; total: number; score: string } | null;
+  _certDisplay?: string;
+}
+
+const enrichPersonData = (person: Person, searchCertString?: string): EnrichedPerson => {
+  const enriched = { ...person } as EnrichedPerson;
+
+  enriched._pmScore = getPMQualificationScore(person);
+
+  const searchCerts: string[] = (() => {
+    if (!searchCertString) return [];
+    const raw = searchCertString.trim();
+    if (!raw) return [];
+    return raw.split(/[,，;；、]/).map(c => c.trim()).filter(c => c.length >= 1);
+  })();
+
+  if (searchCerts.length > 0) {
+    const searchCertTerms = searchCerts.map(c => c.replace(/\s/g, '').toLowerCase());
+
+    const localNormalize = (raw: string): string[] => {
+      const cleaned = raw.replace(/\s/g, '').toLowerCase();
+      const v: string[] = [cleaned];
+      const np = cleaned.replace(/[（(][^）)]*[）)]/g, '');
+      if (np && np !== cleaned) v.push(np);
+      v.push(...np.split(/[,，、\/\\]/).filter(p => p.length >= 2));
+      return [...new Set(v)];
+    };
+
+    let matched = 0;
+    searchCerts.forEach(term => {
+      const termVariants = localNormalize(term);
+      let targetCol: string | null = null;
+      for (const [k, col] of Object.entries(COMPREHENSIVE_CERT_MAPPINGS)) {
+        if (k.replace(/\s/g, '').toLowerCase() === termVariants[0] ||
+            termVariants.some(tv => k.replace(/\s/g, '').toLowerCase() === tv)) {
+          targetCol = col;
+          break;
+        }
+      }
+      if (Array.isArray(person.certificates)) {
+        const found = person.certificates.some((cert: any) => {
+          const cn = typeof cert === 'string' ? cert : (cert.name || cert.value || '');
+          return termVariants.some(tv => cn.replace(/\s/g, '').toLowerCase().includes(tv));
+        });
+        if (found) { matched++; return; }
+      }
+      if (person.certificateColumns) {
+        const isMapped = !!targetCol;
+        const tcn = targetCol ? targetCol.replace(/\s/g, '').toLowerCase() : null;
+        let mappedChecked = false;
+
+        for (const [cName, cVal] of Object.entries(person.certificateColumns)) {
+          const vs = String(cVal || '').trim();
+          if (!vs || ['否', '无', '-', '/', 'N/A'].includes(vs) || vs.toLowerCase() === 'no') continue;
+          if (hiddenColumns.some(h => cName.includes(h))) continue;
+          const vn = vs.replace(/\s/g, '').toLowerCase();
+          const cnn = cName.replace(/\s/g, '').toLowerCase();
+          const isBooleanValue = ['是', '有'].includes(vs);
+
+          if (isMapped && tcn) {
+            if (cnn.includes(tcn) || tcn.includes(cnn)) {
+              mappedChecked = true;
+              if (isBooleanValue) {
+                if (termVariants.some(tv => cnn.includes(tv) || tv.includes(cnn))) { matched++; return; }
+              } else {
+                if (termVariants.some(tv => vn.includes(tv) || tv.includes(vn))) { matched++; return; }
+              }
+            }
+          } else {
+            if (isBooleanValue) {
+              if (termVariants.some(tv => cnn.includes(tv) || tv.includes(cnn))) { matched++; return; }
+            } else {
+              if (termVariants.some(tv => vn.includes(tv) || cnn.includes(tv))) { matched++; return; }
+            }
+          }
+        }
+
+        if (isMapped && tcn && !mappedChecked) {
+          for (const [, cVal] of Object.entries(person.certificateColumns)) {
+            const vs = String(cVal || '').trim();
+            if (!vs || ['否', '无', '-', '/', 'N/A'].includes(vs) || vs.toLowerCase() === 'no') continue;
+            if (['是', '有'].includes(vs)) continue;
+            if (termVariants.some(tv => vs.replace(/\s/g, '').toLowerCase().includes(tv))) { matched++; return; }
+          }
+        }
+
+        if (isMapped && tcn && mappedChecked) {
+          for (const [cName, cVal] of Object.entries(person.certificateColumns)) {
+            if (hiddenColumns.some(h => cName.includes(h))) continue;
+            const vs = String(cVal || '').trim();
+            if (!vs || ['否', '无', '-', '/', 'N/A'].includes(vs) || vs.toLowerCase() === 'no') continue;
+            const cnn = cName.replace(/\s/g, '').toLowerCase();
+            if ((cnn.includes(tcn) || tcn.includes(cnn)) && ['是', '有'].includes(vs)) {
+              if (termVariants.some(tv => cnn.includes(tv) || tv.includes(cnn))) { matched++; return; }
+            }
+          }
+        }
+      }
+    });
+
+    const total = searchCertTerms.length;
+    let scoreStr = '-';
+    if (matched >= total) scoreStr = `全匹配✓`;
+    else if (matched > 0) scoreStr = `${matched}个✓`;
+    enriched._certMatchInfo = { matched, total, score: scoreStr };
+  }
+
+  const aggregatedCerts = new Set<string>();
+  if (Array.isArray(person.certificates)) {
+    person.certificates.forEach((cert: any) => {
+      const name = typeof cert === 'string' ? cert : (cert.name || cert.value || '');
+      if (name && name.trim()) {
+        const isHidden = hiddenColumns.some(h => name.includes(h));
+        const isExcluded = EXCLUDED_CERT_KEYWORDS.some(kw => name.includes(kw));
+        if (!isHidden && !isExcluded) aggregatedCerts.add(name.trim());
+      }
+    });
+  }
+  if (person.certificateColumns) {
+    Object.entries(person.certificateColumns).forEach(([colName, colValue]) => {
+      if (colName.includes('教育形式')) return;
+      const valStr = String(colValue || '').trim();
+      if (!valStr || ['否', '无', '-', '/', 'N/A'].includes(valStr) || valStr.toLowerCase() === 'no') return;
+      let displayName: string;
+      if (['是', '有'].includes(valStr)) displayName = colName.trim();
+      else displayName = valStr;
+      const isHidden = hiddenColumns.some(h => displayName.includes(h));
+      const isExcluded = EXCLUDED_CERT_KEYWORDS.some(kw => displayName.includes(kw));
+      if (!isHidden && !isExcluded) aggregatedCerts.add(displayName);
+    });
+  }
+  enriched._certDisplay = Array.from(aggregatedCerts).join('、');
+
+  return enriched;
+};
 
 
 const App: React.FC = () => {
@@ -31,7 +346,9 @@ const App: React.FC = () => {
     certificate: '',
     employeeId: '',
     tenureMin: 0,
-    tenureMax: 50
+    tenureMax: 50,
+    graduationTenureMin: 0,
+    graduationTenureMax: 50,
   });
   const [showAdminPanel, setShowAdminPanel] = useState<boolean>(false);
   const [logs, setLogs] = useState<string[]>([]);
@@ -88,6 +405,7 @@ const App: React.FC = () => {
   const majorInputRef = React.useRef<HTMLInputElement>(null);
   const [showAgeDropdown, setShowAgeDropdown] = useState<boolean>(false);
   const [showTenureDropdown, setShowTenureDropdown] = useState<boolean>(false);
+  const [showGraduationTenureDropdown, setShowGraduationTenureDropdown] = useState<boolean>(false);
   const [files, setFiles] = useState<{ id: string; name: string; size: number; uploadedAt: Date }[]>([]);
   const [modules, setModules] = useState<{
     fileUpload: boolean;
@@ -113,7 +431,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
   const [showContactModal, setShowContactModal] = useState<boolean>(false);
-  const [selectedPeople, setSelectedPeople] = useState<number[]>([]);
+  const [selectedPeople, setSelectedPeople] = useState<(string | number)[]>([]);
   const [dataSets, setDataSets] = useState<DataSet[]>([]);
   const [currentDataSetId, setCurrentDataSetId] = useState<string | null>(null);
   const [showDataSetModal, setShowDataSetModal] = useState<boolean>(false);
@@ -121,15 +439,35 @@ const App: React.FC = () => {
   // AI 智能搜索状态
   const [smartQuery, setSmartQuery] = useState<string>('');
   const [isSmartSearching, setIsSmartSearching] = useState<boolean>(false);
+  const [aiDiagnosticInfo, setAiDiagnosticInfo] = useState<string>('');
   const [showAISettings, setShowAISettings] = useState<boolean>(false);
   const [aiProvider, setAiProvider] = useState<string>('deepseek');
   const [aiApiKey, setAiApiKey] = useState<string>('');
   const [aiBaseUrl, setAiBaseUrl] = useState<string>('');
   const [aiModel, setAiModel] = useState<string>('');
-  const [aiResult, setAiResult] = useState<any>(null);
-  
-  // 定义需要隐藏的列
-  const hiddenColumns = ['PMP取证时间', 'PMP取证年限（年）', 'PMP是否过期'];
+  const [aiConfigSaved, setAiConfigSaved] = useState<boolean>(false);
+
+  // 从持久化存储加载AI配置（仅在挂载时执行一次）
+  useEffect(() => {
+    const savedConfig = storageService.getAIConfig();
+    if (savedConfig) {
+      if (savedConfig.provider) setAiProvider(savedConfig.provider);
+      if (savedConfig.apiKey) setAiApiKey(savedConfig.apiKey);
+      if (savedConfig.baseUrl) setAiBaseUrl(savedConfig.baseUrl);
+      if (savedConfig.model) setAiModel(savedConfig.model);
+      setAiConfigSaved(true);
+    }
+  }, []);
+
+  // 防抖自动保存AI配置
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const config = { provider: aiProvider, apiKey: aiApiKey, baseUrl: aiBaseUrl, model: aiModel };
+      storageService.saveAIConfig(config);
+      setAiConfigSaved(true);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [aiProvider, aiApiKey, aiBaseUrl, aiModel]);
 
   // 记录日志
   const addLog = (message: string) => {
@@ -564,7 +902,7 @@ const App: React.FC = () => {
   };
 
   // 处理单条数据删除
-  const handlePersonDelete = (personId: number, personName: string) => {
+  const handlePersonDelete = (personId: string | number, personName: string) => {
     if (window.confirm(`确定要删除人员 "${personName}" 的数据吗？`)) {
       setPeople(prev => prev.filter(person => person.id !== personId));
       addLog(`删除人员数据: ${personName}`);
@@ -589,7 +927,7 @@ const App: React.FC = () => {
   };
 
   // 处理人员选择
-  const handlePersonSelect = (personId: number) => {
+  const handlePersonSelect = (personId: string | number) => {
     setSelectedPeople(prev => {
       if (prev.includes(personId)) {
         return prev.filter(id => id !== personId);
@@ -776,14 +1114,31 @@ const App: React.FC = () => {
             age: ['年龄', 'age'],
             education: ['学历', 'education'],
             major: ['专业', 'major'],
-            employeeId: ['工号', 'employeeid', 'employee']
+            employeeId: ['工号', 'employeeid', 'employee'],
+            tenure: ['入司年限', '入司年限（年）', '入司时间', '司龄', 'tenure'],
+            graduationTenure: ['毕业年限', '毕业年限（年）', '毕业时间', '工作年限', '从业年限']
           };
           
           const certificateColumnNames = [
-            '红帽认证', 'ORACLE', 'Cisco思科', 'ITIL', '天宫认证', '产品体验师', 
-            '微软工程师', '系统分析师', '信息系统项目管理师', '系统集成项目经理', 
-            '系统集成项目管理工程师', '财会类', '人力资源类', '教育类', '语言类', 
-            '计算机等级', '其他资质', 'PMP'
+            '红帽认证', 'ORACLE', 'Cisco思科', 'ITIL', '天宫认证', '产品体验师',
+            '微软工程师', '系统分析师', '信息系统项目管理师', '系统集成项目经理',
+            '系统集成项目管理工程师', '财会类', '人力资源类', '教育类', '语言类',
+            '计算机等级', '其他资质', 'PMP',
+            '软考体系', '工信部其他认证', '阿里云、腾讯云', '华为、华三、CISP、ITSS',
+            'ITIL、CKA/CKS、Vmware、Redhead', '思科、甲骨文、微软、EXIN、Linux',
+            '全媒体运营师、NDPD等运营及产品相关计算机等级', '其他 IT 认证', '其他认证'
+          ];
+
+          const certColumnPatterns = [
+            /系统架构师/i, /系统分析师/i, /信息系统项目管理/i, /系统集成项目/i,
+            /网络规划师/i, /网络工程师/i, /高级工程师/i, /工程咨询师/i,
+            /软考/i, /工信部/i, /阿里云/i, /腾讯云/i, /华为/i, /华三/i, /H3C/i,
+            /CISP/i, /ITSS/i, /CCNA/i, /CCNP/i, /CCIE/i,
+            /ITIL/i, /CKA/i, /CKS/i, /Vmware/i, /Redhat/i, /红帽/i, /RHCE/i, /RHCA/i,
+            /思科/i, /Cisco/i, /Oracle/i, /甲骨文/i, /微软/i, /EXIN/i, /Linux/i,
+            /PMP/i, /PMI/i,
+            /全媒体运营/i, /NDPD/i, /天宫认证/i, /产品体验/i, /计算机等级/i,
+            /财会类/i, /人力资源类/i, /教育类/i, /语言类/i, /其他认证/i, /其他资质/i
           ];
           
           const excludedCertificateKeywords = ['毕业', '学位', '学历'];
@@ -809,7 +1164,7 @@ const App: React.FC = () => {
             const allKeys = Object.keys(item);
             const certificateColumns: { [key: string]: string } = {};
             let name = '', education = '', major = '', employeeId = '';
-            let age = 0;
+            let age = 0, tenure = 0, graduationTenure = 0;
             const certificates: string[] = [];
             
             for (const [key, value] of Object.entries(item)) {
@@ -833,15 +1188,22 @@ const App: React.FC = () => {
               } else if (fieldMappings.employeeId.some(k => keyClean.includes(k.toLowerCase()))) {
                 employeeId = String(value) || '';
                 fieldRecognized = true;
+              } else if (fieldMappings.tenure.some(k => keyClean.includes(k.toLowerCase()) || keyWithoutSpaces.includes(k.replace(/\s/g, '').toLowerCase()))) {
+                tenure = parseFloat(String(value)) || 0;
+                fieldRecognized = true;
+              } else if (fieldMappings.graduationTenure.some(k => keyClean.includes(k.toLowerCase()) || keyWithoutSpaces.includes(k.replace(/\s/g, '').toLowerCase()))) {
+                graduationTenure = parseFloat(String(value)) || 0;
+                fieldRecognized = true;
               }
               
               // 证书列处理
-              const isHidden = hiddenColumnsSet.has(key.toLowerCase()) || 
+              const isHidden = hiddenColumnsSet.has(key.toLowerCase()) ||
                 hiddenColumns.some(h => keyWithoutSpaces.includes(h.replace(/\s/g, '').toLowerCase()));
-              
-              const isCertColumn = certColumnSet.has(keyWithoutSpaces) || 
-                certificateColumnNames.some(c => keyWithoutSpaces.includes(c.replace(/\s/g, '').toLowerCase()));
-              
+
+              const isCertColumn = certColumnSet.has(keyWithoutSpaces) ||
+                certificateColumnNames.some(c => keyWithoutSpaces.includes(c.replace(/\s/g, '').toLowerCase())) ||
+                certColumnPatterns.some(p => p.test(key));
+
               const isExcludedCert = excludedCertificateKeywords.some(k => keyClean.includes(k));
               const isFirstColumn = key === allKeys[0];
               
@@ -905,6 +1267,8 @@ const App: React.FC = () => {
               certificates: finalCertificates,
               employeeId,
               certificateColumns,
+              tenure,
+              graduationTenure,
               originalData: item
             };
           };
@@ -948,16 +1312,38 @@ const App: React.FC = () => {
           // 提取所有唯一的专业名称
           const allMajors = new Set<string>();
           validPeople.forEach(person => {
-            person.certificates.forEach(cert => {
-              // 排除需要隐藏的列
-              const isHidden = hiddenColumns.some(hiddenColumn => 
-                cert.includes(hiddenColumn) || 
-                cert.replace(/\s/g, '').toLowerCase().includes(hiddenColumn.replace(/\s/g, '').toLowerCase())
-              );
-              if (!isHidden) {
-                allCertificates.add(cert);
-              }
-            });
+            if (Array.isArray(person.certificates)) {
+              person.certificates.forEach((cert: any) => {
+                const certName = typeof cert === 'string' ? cert : (cert.name || cert.value || '');
+                const isHidden = hiddenColumns.some(h =>
+                  certName.includes(h) || certName.replace(/\s/g, '').toLowerCase().includes(h.replace(/\s/g, '').toLowerCase())
+                );
+                const isExcluded = EXCLUDED_CERT_KEYWORDS.some(kw => certName.includes(kw));
+                if (!isHidden && !isExcluded && certName.trim()) {
+                  allCertificates.add(certName.trim());
+                }
+              });
+            }
+
+            if (person.certificateColumns) {
+              Object.entries(person.certificateColumns).forEach(([colName, colValue]) => {
+                if (colName.includes('教育形式')) return;
+                const valStr = String(colValue || '').trim();
+                if (!valStr || ['否', '无', '-', '/', 'N/A'].includes(valStr) || valStr.toLowerCase() === 'no') return;
+                const isHiddenCol = hiddenColumns.some(h => colName.includes(h));
+                if (!isHiddenCol && colName.trim()) {
+                  allCertificates.add(colName.trim());
+                }
+                if (['是', '有'].includes(valStr)) {
+                  const isExcludedVal = EXCLUDED_CERT_KEYWORDS.some(kw => colName.includes(kw));
+                  if (!isExcludedVal) allCertificates.add(colName.trim());
+                } else {
+                  const isExcludedVal = EXCLUDED_CERT_KEYWORDS.some(kw => valStr.includes(kw));
+                  if (!isExcludedVal && valStr.trim()) allCertificates.add(valStr.trim());
+                }
+              });
+            }
+
             // 提取专业
             if (person.major && person.major.trim()) {
               allMajors.add(person.major.trim());
@@ -1009,7 +1395,7 @@ const App: React.FC = () => {
                   // 重新加载人员数据
                   const persons = await storageService.getPersonsByDatasetId(currentDataSetId);
                   setPeople(persons);
-                  setCertificateOptions([...allCertificates]);
+                  setCertificateOptions([...BASE_CERT_CATEGORIES, ...allCertificates]);
                   setMajorOptions([...allMajors]);
                   feedbackMessage += '\n\n已覆盖当前数据集合。';
                 } else {
@@ -1039,7 +1425,7 @@ const App: React.FC = () => {
                   // 加载新创建的人员数据
                   const persons = await storageService.getPersonsByDatasetId(newDataSet.id);
                   setPeople(persons);
-                  setCertificateOptions([...allCertificates]);
+                  setCertificateOptions([...BASE_CERT_CATEGORIES, ...allCertificates]);
                   setMajorOptions([...allMajors]);
                   feedbackMessage += `\n\n已创建新数据集合: ${newDataSet.name}`;
                 }
@@ -1052,9 +1438,11 @@ const App: React.FC = () => {
                 addLog(`文件上传成功: ${file.name}，导入 ${validPeople.length} 条记录`);
                 // 显示导入成功提示
                 displayAlert(feedbackMessage, 'success');
-              } catch (error) {
+              } catch (error: any) {
                 console.error('数据存储失败:', error);
-                displayAlert('数据存储失败，请稍后重试', 'error');
+                const errorMsg = error?.message || error || '未知错误';
+                displayAlert(`数据存储失败: ${errorMsg}`, 'error');
+                addLog(`❌ 数据存储失败: ${errorMsg}`);
               } finally {
                 // 重置上传状态
                 setUploading(false);
@@ -1145,16 +1533,36 @@ const App: React.FC = () => {
                   return c.name || c.value || String(c) || '';
                 };
                 const certName = getCertName(cert);
-                if (certName && certName.trim()) {
+                const isHidden = hiddenColumns.some(h =>
+                  certName.includes(h) || certName.replace(/\s/g, '').toLowerCase().includes(h.replace(/\s/g, '').toLowerCase())
+                );
+                const isExcluded = EXCLUDED_CERT_KEYWORDS.some(kw => certName.includes(kw));
+                if (certName && certName.trim() && !isHidden && !isExcluded) {
                   certificateOptions.add(certName.trim());
                 }
               });
             }
+
+            if (person.certificateColumns) {
+              Object.entries(person.certificateColumns).forEach(([colName, colValue]) => {
+                if (colName.includes('教育形式')) return;
+                const valStr = String(colValue || '').trim();
+                if (!valStr || ['否', '无', '-', '/', 'N/A'].includes(valStr) || valStr.toLowerCase() === 'no') return;
+                const isHiddenCol = hiddenColumns.some(h => colName.includes(h));
+                if (!isHiddenCol && colName.trim()) certificateOptions.add(colName.trim());
+                if (['是', '有'].includes(valStr)) {
+                  if (!EXCLUDED_CERT_KEYWORDS.some(kw => colName.includes(kw))) certificateOptions.add(colName.trim());
+                } else {
+                  if (!EXCLUDED_CERT_KEYWORDS.some(kw => valStr.includes(kw)) && valStr.trim()) certificateOptions.add(valStr.trim());
+                }
+              });
+            }
+
             if (person.major && person.major.trim()) {
               majorOptions.add(person.major.trim());
             }
           });
-          setCertificateOptions([...certificateOptions]);
+          setCertificateOptions([...BASE_CERT_CATEGORIES, ...certificateOptions]);
           setMajorOptions([...majorOptions]);
         }
       }
@@ -1390,6 +1798,16 @@ const App: React.FC = () => {
     setShowTenureDropdown(false);
   };
 
+  // 处理毕业年限快速选择
+  const handleGraduationTenureRangeSelect = (min: number, max: number) => {
+    setFilters(prev => ({
+      ...prev,
+      graduationTenureMin: min,
+      graduationTenureMax: max
+    }));
+    setShowGraduationTenureDropdown(false);
+  };
+
   // 处理筛选
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -1466,9 +1884,10 @@ const App: React.FC = () => {
       }
     }
     
+    const numericFields = ['ageMin', 'ageMax', 'tenureMin', 'tenureMax', 'graduationTenureMin', 'graduationTenureMax'];
     setFilters(prev => ({
       ...prev,
-      [name]: name.includes('age') ? parseInt(value) : value
+      [name]: numericFields.includes(name) ? (parseInt(value) || 0) : value
     }));
   };
 
@@ -1548,7 +1967,7 @@ const App: React.FC = () => {
     };
   }, [blurTimeout]);
 
-  // AI 智能搜索处理
+  // AI 智能搜索处理 - 动态阈值架构
   const handleSmartSearch = async () => {
     if (!smartQuery.trim()) {
       displayAlert('请输入筛选条件', 'error');
@@ -1556,7 +1975,7 @@ const App: React.FC = () => {
     }
 
     setIsSmartSearching(true);
-    setAiResult(null);
+    setAiDiagnosticInfo('');
 
     try {
       const config: any = { apiKey: aiApiKey };
@@ -1564,24 +1983,112 @@ const App: React.FC = () => {
       if (aiModel) config.model = aiModel;
 
       const result = await storageService.smartSearch(smartQuery, aiProvider, config);
-      
-      setAiResult(result);
-      
-      if (result.success && result.filters) {
-        const f = result.filters;
-        
-        setFilters(prev => ({
-          ...prev,
-          name: f.name || '',
-          ageMin: f.age_min !== undefined ? String(f.age_min) : prev.ageMin,
-          ageMax: f.age_max !== undefined ? String(f.age_max) : prev.ageMax,
-          education: f.education ? [f.education] : prev.education,
-          major: f.major ? [f.major] : prev.major,
-          certificate: f.certificates && f.certificates.length > 0 ? f.certificates[0] : prev.certificate
-        }));
 
-        displayAlert(`AI 解析成功：${result.explanation || '已自动填入筛选条件'}`, 'success');
-        addLog(`AI 智能搜索: "${smartQuery}" → ${JSON.stringify(result.filters)}`);
+      if (result.success) {
+        const isNewFormat = result.cert_pool !== undefined;
+        const rule = isNewFormat ? result : { ...result.filters, _legacy: true };
+
+        const pool = isNewFormat ? (rule.cert_pool || []) : (rule.certificates || []);
+        let threshold: number;
+        let mode: string;
+
+        if (isNewFormat) {
+          const rawThreshold = Number(rule.threshold);
+          const rawMatchMode = rule.match_mode || 'AT_LEAST';
+          
+          // 关键修复：区分 "AI返回0" 和 "AI返回有效的threshold"
+          // 如果 threshold 是有效的正数，直接使用
+          // 如果 threshold 为0或无效，根据match_mode决定默认值
+          if (rawThreshold > 0) {
+            threshold = rawThreshold;
+            mode = rawMatchMode;
+          } else {
+            // threshold为0或无效时，根据match_mode设置合理的默认值
+            if (rawMatchMode === 'ALL') {
+              threshold = pool.length;  // 全部匹配
+              mode = 'ALL';
+            } else if (rawMatchMode === 'ANY') {
+              threshold = 1;  // 任意1个
+              mode = 'ANY';
+            } else {
+              // AT_LEAST模式但threshold无效，默认设为1（至少1个）
+              threshold = 1;
+              mode = 'AT_LEAST';
+              addLog(`[警告] AI返回AT_LEAST模式但threshold=${rawThreshold}无效，默认设为1`);
+            }
+          }
+        } else {
+          const legacyLogic = (rule.cert_logic || 'and').toLowerCase();
+          const legacyMinCount = rule.cert_min_count ? Number(rule.cert_min_count) : null;
+          const explanation = (result.explanation || rule.explanation || '').toLowerCase();
+
+          if (legacyLogic === 'count' && legacyMinCount !== null) {
+            mode = 'AT_LEAST';
+            threshold = Math.min(legacyMinCount, pool.length);
+          } else if (legacyLogic === 'or') {
+            mode = 'ANY';
+            threshold = 1;
+          } else if (legacyLogic === 'and') {
+            const hasAtLeastHint = /至少|以上|超过|其中|任意|任选|满足.*项|达到|具备.*种/.test(explanation);
+            const hasArabicCount = /(\d+)\s*(个|种|项|证)/.test(explanation);
+            const extractedArabicNum = hasArabicCount ? parseInt(explanation.match(/(\d+)\s*(个|种|项|证)/)?.[1] || '0') : 0;
+
+            const chineseNumMap: { [key: string]: number } = {
+              '一': 1, '二': 2, '两': 2, '双': 2, '三': 3, '四': 4,
+              '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10
+            };
+            const chineseNumMatch = explanation.match(/([一二两三四五六七八九十双])\s*(个|种|项|证)/);
+            const extractedChineseNum = chineseNumMatch ? (chineseNumMap[chineseNumMatch[1]] || 0) : 0;
+            const extractedNum = extractedArabicNum > 0 ? extractedArabicNum : extractedChineseNum;
+
+            if ((pool.length > 3 || hasAtLeastHint) && extractedNum > 0) {
+              mode = 'AT_LEAST';
+              threshold = Math.min(extractedNum, pool.length);
+              addLog(`[旧格式修正] 检测到'explanation中的数量线索(${extractedNum})', 将AND→AT_LEAST`);
+            } else if (pool.length > 3 && hasAtLeastHint) {
+              mode = 'AT_LEAST';
+              threshold = Math.max(1, Math.ceil(pool.length / 2));
+              addLog(`[旧格式修正] 池大(>3)+有至少提示, AND→AT_LEAST, N=${threshold}`);
+            } else if (pool.length > 5) {
+              mode = 'AT_LEAST';
+              threshold = Math.max(1, Math.ceil(pool.length * 0.4));
+              addLog(`[旧格式修正] 池很大(>5), AND→AT_LEAST, N=${threshold}`);
+            } else {
+              mode = 'ALL';
+              threshold = pool.length;
+            }
+          } else {
+            mode = 'AT_LEAST';
+            threshold = (legacyMinCount !== null && legacyMinCount !== undefined) ? legacyMinCount : Math.max(1, Math.ceil(pool.length / 2));
+          }
+
+          if (threshold > pool.length) threshold = pool.length;
+          if (threshold < 0) threshold = pool.length > 0 ? 1 : 0;
+        }
+
+        const diagLines = [
+          `📥 AI解析结果:`,
+          `  格式: ${isNewFormat ? '新(cert_pool/threshold)' : '旧(legacy)'}`,
+          `  证书池(S=${pool.length}): ${pool.join(', ')}`,
+          `  阈值(N): ${threshold}`,
+          `  模式: ${mode.toUpperCase()}`,
+          rule.name ? `  姓名: ${rule.name}` : '',
+          rule.age_min !== undefined && rule.age_min !== null ? `  年龄: ${rule.age_min}-${rule.age_max ?? '?'}岁` : '',
+          rule.education ? `  学历: ${rule.education}` : '',
+          result.explanation || rule.explanation ? `  说明: ${result.explanation || rule.explanation}` : ''
+        ].filter(Boolean);
+        setAiDiagnosticInfo(diagLines.join('\n'));
+
+        addLog(`AI 解析: "${smartQuery}" → S=${pool.length}, N=${threshold}, mode=${mode}`);
+
+        if (!isNewFormat) {
+          displayAlert('⚠ AI返回旧格式，建议重启服务以使用新Prompt', 'info');
+        }
+
+        rule._precomputed = { pool, threshold, mode };
+        setTimeout(() => executeAIDirectSearch(rule), 100);
+      } else {
+        displayAlert(`AI 解析失败：${result.error || '无法解析查询条件'}`, 'error');
       }
     } catch (error: any) {
       console.error('Smart search error:', error);
@@ -1596,11 +2103,256 @@ const App: React.FC = () => {
     }
   };
 
-  // 应用 AI 解析结果并执行查询
-  const applyAIResultAndSearch = () => {
-    if (aiResult?.filters) {
-      handleSearch();
-      setAiResult(null);
+  const normalizeCertName = (raw: string): string => raw.replace(/\s/g, '').toLowerCase();
+
+  const collectPersonCerts = (person: any): Set<string> => {
+    const certs = new Set<string>();
+    if (Array.isArray(person.certificates)) {
+      person.certificates.forEach((c: any) => {
+        const name = typeof c === 'string' ? c : (c.name || c.value || '');
+        if (name) certs.add(normalizeCertName(name));
+      });
+    }
+    if (person.certificateColumns) {
+      Object.entries(person.certificateColumns).forEach(([colName, colValue]) => {
+        if (hiddenColumns.some(h => colName.includes(h))) return;
+        const vs = String(colValue || '').trim();
+        if (!vs || ['否', '无', '-', '/', 'N/A'].includes(vs) || vs.toLowerCase() === 'no') return;
+        if (['是', '有'].includes(vs)) {
+          certs.add(normalizeCertName(colName));
+        } else {
+          certs.add(normalizeCertName(vs));
+        }
+      });
+    }
+    return certs;
+  };
+
+  const certFuzzyMatch = (personCerts: Set<string>, searchTerm: string): boolean => {
+    const searchNorm = normalizeCertName(searchTerm);
+    
+    // 1. 精确匹配：搜索词完全等于证书名
+    for (const pc of personCerts) {
+      if (pc === searchNorm) return true;
+    }
+    
+    // 2. 包含匹配：证书名包含完整搜索词，或搜索词包含完整证书名
+    for (const pc of personCerts) {
+      if (pc.includes(searchNorm) || searchNorm.includes(pc)) return true;
+    }
+    
+    // 3. 去除括号后的匹配
+    const searchNoParen = searchNorm.replace(/[（(][^）)]*[）)]/g, '');
+    if (searchNoParen !== searchNorm) {
+      for (const pc of personCerts) {
+        const pcNoParen = pc.replace(/[（(][^）)]*[）)]/g, '');
+        if (pcNoParen === searchNoParen) return true;
+        if (pcNoParen.includes(searchNoParen) || searchNoParen.includes(pcNoParen)) return true;
+      }
+    }
+    
+    return false;
+  };
+
+  const countMatchedDistinct = (personCerts: Set<string>, certPool: string[]): number => {
+    const matched = new Set<string>();
+    for (const poolItem of certPool) {
+      if (certFuzzyMatch(personCerts, poolItem)) {
+        matched.add(normalizeCertName(poolItem));
+      }
+    }
+    return matched.size;
+  };
+
+  // 获取人员实际持有的证书总数（基于后台数据表格记录）
+  const getPersonTotalCertCount = (person: any): number => {
+    const uniqueCerts = new Set<string>();
+    
+    // 从 certificates 数组统计
+    if (Array.isArray(person.certificates)) {
+      person.certificates.forEach((cert: any) => {
+        const certName = typeof cert === 'string' ? cert : (cert.name || cert.value || '');
+        if (certName) uniqueCerts.add(normalizeCertName(certName));
+      });
+    }
+    
+    // 从 certificateColumns 对象统计（值为"是"/"有"或非空值的列）
+    if (person.certificateColumns) {
+      for (const [colName, colValue] of Object.entries(person.certificateColumns)) {
+        if (hiddenColumns.some(h => colName.includes(h))) continue;
+        const vs = String(colValue || '').trim();
+        if (!vs || ['否', '无', '-', '/', 'N/A'].includes(vs) || vs.toLowerCase() === 'no') continue;
+        
+        // 如果值是"是"/"有"，使用列名作为证书名；否则使用值
+        const certName = ['是', '有'].includes(vs) ? colName : vs;
+        if (certName) uniqueCerts.add(normalizeCertName(certName));
+      }
+    }
+    
+    return uniqueCerts.size;
+  };
+
+  // 核心查询引擎 - 等效 SQL: COUNT(DISTINCT matched_cert) >= :threshold
+  const executeAIDirectSearch = (aiRule: any) => {
+    setIsSearching(true);
+    setShowCertDropdown(false);
+
+    if (!people || people.length === 0) {
+      displayAlert('没有可用的数据，请先导入文件', 'error');
+      setIsSearching(false);
+      return;
+    }
+
+    const isNewFormat = !aiRule._legacy;
+    const precomputed = aiRule._precomputed || null;
+    const certPool: string[] = precomputed ? precomputed.pool : (isNewFormat ? (aiRule.cert_pool || []) : (aiRule.certificates || []));
+    const threshold: number = precomputed ? precomputed.threshold : (
+      isNewFormat
+        ? ((aiRule.threshold !== undefined && aiRule.threshold !== null) ? Number(aiRule.threshold) : certPool.length)
+        : ((aiRule.cert_logic === 'and' ? certPool.length : ((aiRule.cert_min_count !== undefined && aiRule.cert_min_count !== null) ? Number(aiRule.cert_min_count) : certPool.length)))
+    );
+    const matchMode: string = precomputed ? precomputed.mode : (isNewFormat ? (aiRule.match_mode || 'AT_LEAST') : (aiRule.cert_logic || 'and'));
+
+    const searchName = aiRule.name ? String(aiRule.name).replace(/\s/g, '').toLowerCase() : '';
+    const searchMajorTerms = aiRule.major ? [String(aiRule.major).replace(/\s/g, '').toLowerCase()] : [];
+    
+    // 提取 tenure（入司年限/毕业年限）
+    const tenureMin = (aiRule.tenure_min !== undefined && aiRule.tenure_min !== null) ? Number(aiRule.tenure_min) : null;
+    const tenureMax = (aiRule.tenure_max !== undefined && aiRule.tenure_max !== null) ? Number(aiRule.tenure_max) : null;
+
+    try {
+      // 边界处理 #0: 负数阈值修正为0
+      const safeThreshold = Math.max(0, threshold);
+
+      // 边界处理 #1: threshold > len(S)
+      const effectiveThreshold = Math.min(safeThreshold, certPool.length);
+
+      // 调试日志
+      addLog(`[调试] matchMode=${matchMode}, threshold=${threshold}, effectiveThreshold=${effectiveThreshold}, certPool.length=${certPool.length}`);
+
+      // 边界处理 #2: N=0 时，根据match_mode设置合理默认值
+      let finalThreshold = effectiveThreshold;
+      if (finalThreshold === 0 && certPool.length > 0) {
+        if (matchMode === 'ALL') {
+          finalThreshold = certPool.length;  // 全部匹配
+        } else if (matchMode === 'ANY') {
+          finalThreshold = 1;  // 任意1个
+        } else {
+          // AT_LEAST模式，默认至少1个（但会记录警告）
+          finalThreshold = 1;
+          addLog(`[警告] AT_LEAST模式但threshold=0，默认设为1`);
+        }
+      }
+
+      // 边界处理 #3: S空且N>0 → 返回空
+      if (certPool.length === 0 && finalThreshold > 0) {
+        displayAlert('未指定任何证书条件（证书池为空）', 'info');
+        setIsSearching(false);
+        return;
+      }
+
+      // 边界处理 #4: 证书池为空 → 返回全部人员
+      const noCertRequired = certPool.length === 0;
+
+      const filtered = people.filter((person: any) => {
+        if (searchName && !(person.name || '').replace(/\s/g, '').toLowerCase().includes(searchName)) return false;
+
+        const age = getPersonAge(person);
+        if (aiRule.age_min !== null && aiRule.age_min !== undefined && age < Number(aiRule.age_min)) return false;
+        if (aiRule.age_max !== null && aiRule.age_max !== undefined && age > Number(aiRule.age_max)) return false;
+
+        if (aiRule.education && person.education !== aiRule.education) return false;
+
+        if (searchMajorTerms.length > 0) {
+          const pm = (person.major || '').replace(/\s/g, '').toLowerCase();
+          if (!searchMajorTerms.some(t => pm.includes(t))) return false;
+        }
+
+        // 毕业年限过滤（AI搜索的tenure_min/tenure_max对应毕业年限）
+        if (tenureMin !== null || tenureMax !== null) {
+          const tenure = getPersonGraduationTenureValue(person);
+
+          if (tenureMin !== null && tenure < tenureMin) {
+            addLog(`[筛选排除] ${person.name || '未知'}: 毕业年限(${tenure}) < 要求最小值(${tenureMin})`);
+            return false;
+          }
+          if (tenureMax !== null && tenure > tenureMax) {
+            addLog(`[筛选排除] ${person.name || '未知'}: 毕业年限(${tenure}) > 要求最大值(${tenureMax})`);
+            return false;
+          }
+        }
+
+        if (noCertRequired) return true;
+
+        const personCerts = collectPersonCerts(person);
+
+        if (matchMode === 'ALL') {
+          const allMatched = certPool.every(item => certFuzzyMatch(personCerts, item));
+          if (!allMatched) return false;
+        } else if (matchMode === 'ANY') {
+          const anyMatched = certPool.some(item => certFuzzyMatch(personCerts, item));
+          if (!anyMatched) return false;
+        } else {
+          // AT_LEAST 模式：检查两个条件
+          // 1. 人员实际持有的证书总数 >= finalThreshold（基于后台数据表格记录数）
+          // 2. 匹配搜索池的证书数 >= finalThreshold
+          const totalCertCount = getPersonTotalCertCount(person);
+          const matchedCount = countMatchedDistinct(personCerts, certPool);
+          
+          // 关键修复：确保证书总数和匹配数都满足阈值要求
+          if (totalCertCount < finalThreshold) {
+            addLog(`[筛选排除] ${person.name || '未知'}: 实际证书数(${totalCertCount}) < 要求(${finalThreshold})`);
+            return false;
+          }
+          if (matchedCount < finalThreshold) {
+            addLog(`[筛选排除] ${person.name || '未知'}: 匹配证书数(${matchedCount}) < 要求(${finalThreshold})`);
+            return false;
+          }
+          
+          (person as any)._matchedCertCount = matchedCount;
+          (person as any)._totalCertCount = totalCertCount;
+          (person as any)._totalPoolSize = certPool.length;
+        }
+
+        return true;
+      });
+
+      const enrichedFiltered = filtered.map(p => enrichPersonData(p, certPool.join('、')));
+      setFilteredPeople(enrichedFiltered);
+      setFilteredCurrentPage(1);
+
+      if (enrichedFiltered.length > 0) {
+        let msg: string;
+        if (noCertRequired) {
+          msg = `✓ 找到 ${enrichedFiltered.length} 人（无证书限制）`;
+        } else if (matchMode === 'ALL') {
+          msg = `✓ 精确匹配 ${enrichedFiltered.length} 人（${certPool.length}项全部具备）`;
+        } else if (matchMode === 'ANY') {
+          msg = `✓ 找到 ${enrichedFiltered.length} 人（具备${certPool.length}项中任一）`;
+        } else {
+          msg = `✓ 找到 ${enrichedFiltered.length} 人（从${certPool.length}项中匹配≥${finalThreshold}项）`;
+        }
+        displayAlert(msg, 'success');
+        addLog(`搜索[${matchMode}] S=${certPool.length}, N=${finalThreshold} → ${enrichedFiltered.length}人`);
+      } else {
+        let msg: string;
+        if (noCertRequired) {
+          msg = '未找到匹配的人员';
+        } else if (matchMode === 'ALL') {
+          msg = `未找到同时具备全部${certPool.length}项证书的人员`;
+        } else if (matchMode === 'ANY') {
+          msg = '未找到具备任一指定证书的人员';
+        } else {
+          msg = `未找到从${certPool.length}项证书中匹配≥${finalThreshold}项的人员`;
+        }
+        displayAlert(msg, 'info');
+        addLog(`搜索[${matchMode}] S=${certPool.length}, N=${effectiveThreshold} → 无结果`);
+      }
+    } catch (err) {
+      console.error('AI direct search error:', err);
+      displayAlert('搜索过程出错', 'error');
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -1612,6 +2364,7 @@ const App: React.FC = () => {
     setShowMajorDropdown(false);
     setShowAgeDropdown(false);
     setShowTenureDropdown(false);
+    setShowGraduationTenureDropdown(false);
     
     if (blurTimeout) {
       clearTimeout(blurTimeout);
@@ -1682,42 +2435,118 @@ const App: React.FC = () => {
               }
             }
 
-            // 入司年限匹配
-            const tenureValue = person.originalData?.['入司年限（年）'] ||
-                               person.originalData?.['入司年限'] ||
-                               person.originalData?.['tenure'] ||
-                               person.originalData?.['years'] || 0;
-            const tenure = parseFloat(tenureValue) || 0;
-            if (tenure < filters.tenureMin || tenure > filters.tenureMax) {
+            // 入司年限匹配（对应"入司年限（年）"列）
+            const companyTenure = getPersonCompanyTenureValue(person);
+            if (companyTenure < filters.tenureMin || companyTenure > filters.tenureMax) {
               return false;
             }
 
-            // 证书匹配（优化：使用预处理后的搜索条件，兼容字符串和对象格式）
+            // 毕业年限匹配（对应"毕业年限（年）"列）- 仅当数据中有此字段时才生效
+            if (filters.graduationTenureMin > 0 || filters.graduationTenureMax < 50) {
+              const gradTenure = getPersonGraduationTenureValue(person);
+              if (gradTenure < filters.graduationTenureMin || gradTenure > filters.graduationTenureMax) {
+                return false;
+              }
+            }
+
+            // 证书匹配（增强版：支持多证书AND逻辑 + 证书映射表）
             if (searchCert) {
-              // 统一提取证书名称的辅助函数
-              const getCertName = (cert: any): string => {
-                if (!cert) return '';
-                if (typeof cert === 'string') return cert;
-                return cert.name || cert.value || String(cert) || '';
+              const searchCertTerms = searchCert.split(/[,，、;；]/).map(s => s.trim()).filter(s => s.length >= 1);
+
+              const normalizeSearchTerm = (raw: string): string[] => {
+                const cleaned = raw.replace(/\s/g, '').toLowerCase();
+                const variants: string[] = [cleaned];
+                const noParen = cleaned.replace(/[（(][^）)]*[）)]/g, '');
+                if (noParen && noParen !== cleaned) variants.push(noParen);
+                variants.push(...noParen.split(/[,，、\/\\]/).filter(p => p.length >= 2));
+                return [...new Set(variants)];
               };
 
-              // 检查证书数组
-              const hasCertMatch = Array.isArray(person.certificates) && person.certificates.some((cert) => {
-                const certName = getCertName(cert);
-                if (!certName) return false;
-                if (hiddenColumns.some(h => certName.includes(h))) return false;
-                return certName.replace(/\s/g, '').toLowerCase().includes(searchCert);
-              });
+              const checkSingleCertMatch = (searchTerm: string): boolean => {
+                const termVariants = normalizeSearchTerm(searchTerm);
 
-              // 检查证书列数据
-              const hasColumnMatch = person.certificateColumns &&
-                Object.entries(person.certificateColumns).some(([key, value]) => {
-                  if (hiddenColumns.some(h => key.includes(h))) return false;
-                  const valStr = String(value || '').trim();
-                  return valStr.replace(/\s/g, '').toLowerCase().includes(searchCert);
-                });
+                let targetColumn: string | null = null;
+                for (const [k, col] of Object.entries(COMPREHENSIVE_CERT_MAPPINGS)) {
+                  if (k.replace(/\s/g, '').toLowerCase() === termVariants[0] ||
+                      termVariants.some(tv => k.replace(/\s/g, '').toLowerCase() === tv)) {
+                    targetColumn = col;
+                    break;
+                  }
+                }
 
-              if (!hasCertMatch && !hasColumnMatch) {
+                if (Array.isArray(person.certificates)) {
+                  const found = person.certificates.some((cert: any) => {
+                    const cn = typeof cert === 'string' ? cert : (cert.name || cert.value || '');
+                    const cnNorm = cn.replace(/\s/g, '').toLowerCase();
+                    return termVariants.some(tv => cnNorm.includes(tv) || tv.includes(cnNorm));
+                  });
+                  if (found) return true;
+                }
+
+                if (person.certificateColumns) {
+                  const isMappedSearch = !!targetColumn;
+                  const targetColNormalized = targetColumn ? targetColumn.replace(/\s/g, '').toLowerCase() : null;
+                  let mappedColumnChecked = false;
+                  let foundInBooleanCol = false;
+
+                  for (const [colName, colValue] of Object.entries(person.certificateColumns)) {
+                    if (hiddenColumns.some(h => colName.includes(h))) continue;
+                    const valStr = String(colValue || '').trim();
+                    if (!valStr || ['否', '无', '-', '/', 'N/A'].includes(valStr) || valStr.toLowerCase() === 'no') continue;
+
+                    const valueNormalized = valStr.replace(/\s/g, '').toLowerCase();
+                    const colNameNormalized = colName.replace(/\s/g, '').toLowerCase();
+                    const isBooleanValue = ['是', '有'].includes(valStr);
+
+                    if (isMappedSearch && targetColNormalized) {
+                      if (colNameNormalized.includes(targetColNormalized) || targetColNormalized.includes(colNameNormalized)) {
+                        mappedColumnChecked = true;
+                        if (isBooleanValue) {
+                          if (termVariants.some(tv => colNameNormalized.includes(tv) || tv.includes(colNameNormalized))) {
+                            foundInBooleanCol = true;
+                            return true;
+                          }
+                        } else {
+                          if (termVariants.some(tv => valueNormalized.includes(tv) || tv.includes(valueNormalized))) return true;
+                        }
+                      }
+                    } else {
+                      if (isBooleanValue) {
+                        if (termVariants.some(tv => colNameNormalized.includes(tv) || tv.includes(colNameNormalized))) return true;
+                      } else {
+                        if (termVariants.some(tv => valueNormalized.includes(tv) || colNameNormalized.includes(tv))) return true;
+                        if (termVariants.some(tv => colName.includes(tv))) return true;
+                      }
+                    }
+                  }
+
+                  if (isMappedSearch && targetColNormalized && !mappedColumnChecked) {
+                    for (const [, cVal] of Object.entries(person.certificateColumns)) {
+                      const vs = String(cVal || '').trim();
+                      if (!vs || ['否', '无', '-', '/', 'N/A'].includes(vs) || vs.toLowerCase() === 'no') continue;
+                      if (['是', '有'].includes(vs)) continue;
+                      if (termVariants.some(tv => vs.replace(/\s/g, '').toLowerCase().includes(tv))) return true;
+                    }
+                  }
+
+                  if (isMappedSearch && targetColNormalized && mappedColumnChecked && !foundInBooleanCol) {
+                    for (const [colName, colValue] of Object.entries(person.certificateColumns)) {
+                      if (hiddenColumns.some(h => colName.includes(h))) continue;
+                      const vs = String(colValue || '').trim();
+                      if (!vs || ['否', '无', '-', '/', 'N/A'].includes(vs) || vs.toLowerCase() === 'no') continue;
+                      const cnn = colName.replace(/\s/g, '').toLowerCase();
+                      if ((cnn.includes(targetColNormalized) || targetColNormalized.includes(cnn)) && ['是', '有'].includes(vs)) {
+                        if (termVariants.some(tv => cnn.includes(tv) || tv.includes(cnn))) return true;
+                      }
+                    }
+                  }
+                }
+
+                return false;
+              };
+
+              const allMatched = searchCertTerms.every(checkSingleCertMatch);
+              if (!allMatched) {
                 return false;
               }
             }
@@ -2300,12 +3129,29 @@ const App: React.FC = () => {
                           const certs = new Set<string>();
                           persons.forEach((p: any) => {
                             (p.certificates || []).forEach((c: any) => {
-                              if (typeof c === 'string') certs.add(c);
-                              else if (c && c.name) certs.add(c.name);
+                              const cn = typeof c === 'string' ? c : (c.name || c.value || '');
+                              if (cn && cn.trim()) {
+                                const isHidden = hiddenColumns.some(h => cn.includes(h));
+                                const isExcluded = EXCLUDED_CERT_KEYWORDS.some(kw => cn.includes(kw));
+                                if (!isHidden && !isExcluded) certs.add(cn.trim());
+                              }
                             });
-                            if (p.major) certs.add(p.major);
+                            if (p.certificateColumns) {
+                              Object.entries(p.certificateColumns).forEach(([colName, colValue]) => {
+                                if (colName.includes('教育形式')) return;
+                                const vs = String(colValue || '').trim();
+                                if (!vs || ['否', '无', '-', '/', 'N/A'].includes(vs) || vs.toLowerCase() === 'no') return;
+                                const isHiddenCol = hiddenColumns.some(h => colName.includes(h));
+                                if (!isHiddenCol && colName.trim()) certs.add(colName.trim());
+                                if (['是', '有'].includes(vs)) {
+                                  if (!EXCLUDED_CERT_KEYWORDS.some(kw => colName.includes(kw))) certs.add(colName.trim());
+                                } else {
+                                  if (!EXCLUDED_CERT_KEYWORDS.some(kw => vs.includes(kw)) && vs.trim()) certs.add(vs.trim());
+                                }
+                              });
+                            }
                           });
-                          setCertificateOptions([...certs]);
+                          setCertificateOptions([...BASE_CERT_CATEGORIES, ...certs]);
                         } else {
                           setCertificateOptions([]);
                         }
@@ -2611,23 +3457,55 @@ const App: React.FC = () => {
                   <div style={{ marginTop: '10px', fontSize: '11px', color: '#999', lineHeight: '1.5' }}>
                     💡 提示：DeepSeek 可在 platform.deepseek.com 免费申请 API Key
                   </div>
+                  <div style={{ marginTop: '10px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    {aiConfigSaved && (
+                      <span style={{ fontSize: '11px', color: '#52c41a' }}>✓ 配置已自动保存</span>
+                    )}
+                    {aiApiKey && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAiApiKey('');
+                          setAiBaseUrl('');
+                          setAiModel('');
+                          storageService.saveAIConfig({ provider: aiProvider, apiKey: '', baseUrl: '', model: '' });
+                          setAiConfigSaved(false);
+                        }}
+                        style={{
+                          fontSize: '11px',
+                          padding: '2px 8px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          background: '#fff',
+                          color: '#999',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        清除 API Key
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
             <div style={{ display: 'flex', gap: '10px' }}>
-              <input
-                type="text"
+              <textarea
                 value={smartQuery}
                 onChange={(e) => setSmartQuery(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !isSmartSearching) handleSmartSearch(); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !isSmartSearching) { e.preventDefault(); handleSmartSearch(); } }}
                 placeholder='例如：30岁以下有PMP证书的软件工程师'
+                rows={2}
                 style={{
                   flex: 1,
                   padding: '10px 14px',
                   border: '2px solid #ff6b81',
                   borderRadius: '8px',
                   fontSize: '14px',
-                  outline: 'none'
+                  outline: 'none',
+                  resize: 'vertical',
+                  minHeight: '52px',
+                  fontFamily: 'inherit',
+                  lineHeight: '1.5'
                 }}
               />
               <button
@@ -2643,65 +3521,47 @@ const App: React.FC = () => {
                   cursor: isSmartSearching ? 'not-allowed' : 'pointer',
                   fontSize: '14px',
                   fontWeight: 'bold',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  alignSelf: 'center'
                 }}
               >
                 {isSmartSearching ? '⏳ 搜索中...' : '🔍 AI 筛选'}
               </button>
             </div>
 
-            {aiResult && aiResult.success && (
+            {isSmartSearching && (
               <div style={{
                 marginTop: '12px',
-                backgroundColor: '#e8f5e9',
+                backgroundColor: '#e3f2fd',
                 borderRadius: '8px',
                 padding: '12px',
-                border: '1px solid #4caf50'
+                border: '1px solid #2196f3',
+                textAlign: 'center'
               }}>
-                <div style={{ fontSize: '13px', color: '#2e7d32', marginBottom: '8px' }}>
-                  ✅ AI 解析结果（置信度：{Math.round((aiResult.confidence || 0) * 100)}%）
+                <div style={{ fontSize: '13px', color: '#1565c0' }}>
+                  🔄 AI正在分析并执行精确匹配搜索...
                 </div>
-                <div style={{ fontSize: '13px', color: '#555', marginBottom: '8px' }}>
-                  {aiResult.explanation}
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
-                  {Object.entries(aiResult.filters || {}).map(([key, val]) => {
-                    if (!val && !Array.isArray(val)) return null;
-                    const labelMap: Record<string, string> = {
-                      name: '姓名', age_min: '最小年龄', age_max: '最大年龄',
-                      education: '学历', major: '专业', certificates: '证书',
-                      tenure_min: '最小年限', tenure_max: '最大年限', is_fullTime: '全日制'
-                    };
-                    const displayVal = Array.isArray(val) ? val.join(', ') : String(val);
-                    return (
-                      <span key={key} style={{
-                        backgroundColor: '#c8e6c9',
-                        padding: '3px 8px',
-                        borderRadius: '12px',
-                        fontSize: '12px',
-                        color: '#1b5e20'
-                      }}>
-                        {labelMap[key] || key}: {displayVal}
-                      </span>
-                    );
-                  })}
-                </div>
-                <button
-                  type="button"
-                  onClick={applyAIResultAndSearch}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#4caf50',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  ✓ 确认并查询
-                </button>
+              </div>
+            )}
+
+            {!isSmartSearching && aiDiagnosticInfo && (
+              <div style={{
+                marginTop: '10px',
+                backgroundColor: '#fff8e1',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                border: '1px solid #ffc107'
+              }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#f57c00', marginBottom: '4px' }}>🔍 AI解析诊断</div>
+                <pre style={{
+                  fontSize: '11px',
+                  color: '#5d4037',
+                  margin: 0,
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-all',
+                  lineHeight: 1.4,
+                  fontFamily: 'monospace'
+                }}>{aiDiagnosticInfo}</pre>
               </div>
             )}
 
@@ -3288,6 +4148,159 @@ const App: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowTenureDropdown(false)}
+                    style={{
+                      width: '100%',
+                      padding: '6px 10px',
+                      border: '1px solid #ffb3ba',
+                      borderRadius: '4px',
+                      backgroundColor: '#ffb3ba',
+                      color: '#ffffff',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      fontSize: '12px',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#ff6b81';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#ffb3ba';
+                    }}
+                  >
+                    应用
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="form-group" style={{ position: 'relative' }}>
+            <label>毕业年限（年）</label>
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setShowGraduationTenureDropdown(!showGraduationTenureDropdown)}
+                style={{
+                  width: '100%',
+                  minWidth: '120px',
+                  maxWidth: '180px',
+                  padding: '8px 12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  textAlign: 'left',
+                  backgroundColor: '#ffffff',
+                  color: '#000000',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#ffb3ba';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#ddd';
+                }}
+              >
+                <span style={{ maxWidth: 'calc(100% - 20px)' }}>
+                  {filters.graduationTenureMin === 0 && filters.graduationTenureMax === 50 ? '全部年限' : `${filters.graduationTenureMin} - ${filters.graduationTenureMax}年`}
+                </span>
+                <span>{showGraduationTenureDropdown ? '▼' : '▶'}</span>
+              </button>
+              {showGraduationTenureDropdown && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #ffb3ba',
+                  borderRadius: '4px',
+                  padding: '10px',
+                  zIndex: 1000,
+                  marginTop: '5px',
+                  boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                  animation: 'fadeIn 0.2s ease'
+                }}>
+                  <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#000000' }}>常用年限区间</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '15px' }}>
+                    {[
+                      { label: '全部', min: 0, max: 50 },
+                      { label: '1年内', min: 0, max: 1 },
+                      { label: '1-3年', min: 1, max: 3 },
+                      { label: '3-5年', min: 3, max: 5 },
+                      { label: '5-10年', min: 5, max: 10 },
+                      { label: '10年以上', min: 10, max: 50 }
+                    ].map(range => (
+                      <button
+                        key={range.label}
+                        type="button"
+                        onClick={() => handleGraduationTenureRangeSelect(range.min, range.max)}
+                        style={{
+                          padding: '6px 10px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          backgroundColor: '#ffffff',
+                          color: '#000000',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          fontSize: '12px',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#ffe6e6';
+                          e.currentTarget.style.borderColor = '#ffb3ba';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#ffffff';
+                          e.currentTarget.style.borderColor = '#ddd';
+                        }}
+                      >
+                        {range.label}
+                      </button>
+                    ))}
+                  </div>
+                  <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#000000' }}>自定义区间</h4>
+                  <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                    <input
+                      type="number"
+                      name="graduationTenureMin"
+                      value={filters.graduationTenureMin}
+                      onChange={handleFilterChange}
+                      min="0"
+                      max="50"
+                      placeholder="最小"
+                      style={{
+                        flex: 1,
+                        padding: '6px 8px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px'
+                      }}
+                    />
+                    <span style={{ display: 'flex', alignItems: 'center' }}>至</span>
+                    <input
+                      type="number"
+                      name="graduationTenureMax"
+                      value={filters.graduationTenureMax}
+                      onChange={handleFilterChange}
+                      min="0"
+                      max="50"
+                      placeholder="最大"
+                      style={{
+                        flex: 1,
+                        padding: '6px 8px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px'
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowGraduationTenureDropdown(false)}
                     style={{
                       width: '100%',
                       padding: '6px 10px',
@@ -4135,27 +5148,8 @@ const App: React.FC = () => {
                           }
                           
                           return paginatedData.map((person) => {
-                            // 收集所有证书名称，以顿号作为分隔符，排除需要隐藏的列（兼容字符串和对象格式）
-                            const getCertName = (cert: any): string => {
-                              if (!cert) return '';
-                              if (typeof cert === 'string') return cert;
-                              return cert.name || cert.value || String(cert) || '';
-                            };
+                            const enriched = (person as any)._certDisplay !== undefined ? person as EnrichedPerson : enrichPersonData(person);
 
-                            const visibleCertificates = Array.isArray(person.certificates)
-                              ? person.certificates
-                                  .map(getCertName)
-                                  .filter(name => {
-                                    if (!name) return false;
-                                    return !hiddenColumns.some(hiddenColumn =>
-                                      name.includes(hiddenColumn) ||
-                                      name.replace(/\s/g, '').toLowerCase().includes(hiddenColumn.replace(/\s/g, '').toLowerCase())
-                                    );
-                                  })
-                              : [];
-                            
-                            const allCertificates = visibleCertificates.join('、');
-                            
                             return (
                               <tr key={person.id} style={{ backgroundColor: '#ffffff' }}>
                                 <td style={{ padding: '8px', border: '1px solid #ffb3ba', textAlign: 'center' }}>
@@ -4167,10 +5161,10 @@ const App: React.FC = () => {
                                 </td>
                                 <td style={{ padding: '8px', border: '1px solid #ffb3ba' }}>{person.employeeId || '-'}</td>
                                 <td style={{ padding: '8px', border: '1px solid #ffb3ba' }}>{person.name || '-'}</td>
-                                <td style={{ padding: '8px', border: '1px solid #ffb3ba' }}>{person.age || '-'}</td>
+                                <td style={{ padding: '8px', border: '1px solid #ffb3ba' }}>{getPersonAge(person) || '-'}</td>
                                 <td style={{ padding: '8px', border: '1px solid #ffb3ba' }}>{person.education || '-'}</td>
                                 <td style={{ padding: '8px', border: '1px solid #ffb3ba' }}>
-                                  {allCertificates || '无'}
+                                  {enriched._certDisplay || '无'}
                                 </td>
                                 <td style={{ padding: '8px', border: '1px solid #ffb3ba', textAlign: 'center' }}>
                                   <button
@@ -4298,36 +5292,17 @@ const App: React.FC = () => {
                     }
                     
                     return paginatedData.map((person) => {
-                      // 收集所有证书名称，以顿号作为分隔符，排除需要隐藏的列（兼容字符串和对象格式）
-                      const getCertName = (cert: any): string => {
-                        if (!cert) return '';
-                        if (typeof cert === 'string') return cert;
-                        return cert.name || cert.value || String(cert) || '';
-                      };
+                      const enriched = (person as any)._certDisplay !== undefined ? person as EnrichedPerson : enrichPersonData(person, filters.certificate);
 
-                      const visibleCertificates = Array.isArray(person.certificates)
-                        ? person.certificates
-                            .map(getCertName)
-                            .filter(name => {
-                              if (!name) return false;
-                              return !hiddenColumns.some(hiddenColumn =>
-                                name.includes(hiddenColumn) ||
-                                name.replace(/\s/g, '').toLowerCase().includes(hiddenColumn.replace(/\s/g, '').toLowerCase())
-                              );
-                            })
-                        : [];
-                      
-                      const allCertificates = visibleCertificates.join('、');
-                      
                       return (
                         <tr key={person.id} style={{ backgroundColor: '#ffffff' }}>
                           <td style={{ padding: '12px', border: '1px solid #ffb3ba' }}>{person.employeeId || '-'}</td>
                           <td style={{ padding: '12px', border: '1px solid #ffb3ba' }}>{person.name || '-'}</td>
-                          <td style={{ padding: '12px', border: '1px solid #ffb3ba' }}>{person.age || '-'}</td>
+                          <td style={{ padding: '12px', border: '1px solid #ffb3ba' }}>{getPersonAge(person) || '-'}</td>
                           <td style={{ padding: '12px', border: '1px solid #ffb3ba' }}>{person.education || '-'}</td>
                           <td style={{ padding: '12px', border: '1px solid #ffb3ba' }}>{person.major || '-'}</td>
                           <td style={{ padding: '12px', border: '1px solid #ffb3ba' }}>
-                            {allCertificates || '无'}
+                            {enriched._certDisplay || '无'}
                           </td>
                         </tr>
                       );

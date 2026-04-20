@@ -3,6 +3,70 @@ const pool = require('../db');
 
 const router = express.Router();
 
+// 获取所有人员（或按数据集筛选）
+router.get('/', async (req, res) => {
+  try {
+    const { dataset_id } = req.query;
+    
+    let query = 'SELECT * FROM persons';
+    let params = [];
+    
+    if (dataset_id) {
+      query += ' WHERE dataset_id = $1';
+      params.push(dataset_id);
+    }
+    
+    const personsResult = await pool.query(query, params);
+    
+    if (personsResult.rows.length === 0) {
+      return res.json([]);
+    }
+    
+    // 一次性获取所有相关证书 - SQLite兼容：使用 IN 而非 ANY
+    const personIds = personsResult.rows.map(p => p.id);
+    if (personIds.length === 0) return res.json([]);
+    const idPlaceholders = personIds.map((_, i) => `$${i + 1}`).join(', ');
+    const certificatesResult = await pool.query(
+      `SELECT * FROM certificates WHERE person_id IN (${idPlaceholders})`,
+      personIds
+    );
+    
+    // 按 person_id 分组证书
+    const certsByPersonId = {};
+    for (const cert of certificatesResult.rows) {
+      if (!certsByPersonId[cert.person_id]) {
+        certsByPersonId[cert.person_id] = [];
+      }
+      certsByPersonId[cert.person_id].push(cert);
+    }
+    
+    // 组装结果
+    const personsWithCertificates = personsResult.rows.map(person => {
+      if (person.original_data) {
+        try {
+          person.original_data = JSON.parse(person.original_data);
+        } catch (e) {}
+      }
+      if (person.certificate_columns) {
+        try {
+          person.certificate_columns = JSON.parse(person.certificate_columns);
+        } catch (e) {
+          person.certificate_columns = {};
+        }
+      }
+      return {
+        ...person,
+        certificates: certsByPersonId[person.id] || []
+      };
+    });
+    
+    res.json(personsWithCertificates);
+  } catch (error) {
+    console.error('Get persons error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get('/dataset/:datasetId', async (req, res) => {
   try {
     const { datasetId } = req.params;
@@ -14,11 +78,12 @@ router.get('/dataset/:datasetId', async (req, res) => {
       return res.json([]);
     }
 
-    // 一次性获取所有相关证书
+    // 一次性获取所有相关证书 - SQLite兼容：使用 IN 而非 ANY
     const personIds = personsResult.rows.map(p => p.id);
+    const idPlaceholders = personIds.map((_, i) => `$${i + 1}`).join(', ');
     const certificatesResult = await pool.query(
-      'SELECT * FROM certificates WHERE person_id = ANY($1)',
-      [personIds]
+      `SELECT * FROM certificates WHERE person_id IN (${idPlaceholders})`,
+      personIds
     );
 
     // 按 person_id 分组证书
@@ -36,6 +101,13 @@ router.get('/dataset/:datasetId', async (req, res) => {
         try {
           person.original_data = JSON.parse(person.original_data);
         } catch (e) {}
+      }
+      if (person.certificate_columns) {
+        try {
+          person.certificate_columns = JSON.parse(person.certificate_columns);
+        } catch (e) {
+          person.certificate_columns = {};
+        }
       }
       return {
         ...person,
@@ -65,6 +137,13 @@ router.get('/:id', async (req, res) => {
         person.original_data = JSON.parse(person.original_data);
       } catch (e) {}
     }
+    if (person.certificate_columns) {
+      try {
+        person.certificate_columns = JSON.parse(person.certificate_columns);
+      } catch (e) {
+        person.certificate_columns = {};
+      }
+    }
     const certificatesResult = await pool.query('SELECT * FROM certificates WHERE person_id = $1', [id]);
 
     res.json({ ...person, certificates: certificatesResult.rows });
@@ -76,12 +155,13 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { dataset_id, name, age, education, major, employee_id, original_data, certificates } = req.body;
+    const { dataset_id, name, age, education, major, employee_id, original_data, certificates, tenure, graduation_tenure, certificate_columns } = req.body;
     const originalDataStr = original_data ? JSON.stringify(original_data) : null;
+    const certColsStr = certificate_columns ? JSON.stringify(certificate_columns) : null;
 
     const result = await pool.query(
-      'INSERT INTO persons (dataset_id, name, age, education, major, employee_id, original_data) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-      [dataset_id, name, age || null, education || null, major || null, employee_id || null, originalDataStr]
+      'INSERT INTO persons (dataset_id, name, age, education, major, employee_id, original_data, tenure, graduation_tenure, certificate_columns) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id',
+      [dataset_id, name, age || null, education || null, major || null, employee_id || null, originalDataStr, tenure || 0, graduation_tenure || 0, certColsStr]
     );
     const personId = result.rows[0].id;
 
@@ -109,46 +189,67 @@ router.post('/batch', async (req, res) => {
     if (!persons || persons.length === 0) return res.status(400).json({ error: 'No persons to create' });
     console.log(`[Batch Import] 开始批量导入 ${persons.length} 条数据...`);
     const startTime = Date.now();
+    const BATCH_SIZE = 30;
+    const totalBatches = Math.ceil(persons.length / BATCH_SIZE);
+    console.log(`[Batch Import] 将分为 ${totalBatches} 批处理 (每批${BATCH_SIZE}条)`);
 
-    const personValues = [];
-    for (const p of persons) {
-      const originalDataStr = p.original_data ? JSON.stringify(p.original_data) : null;
-      personValues.push([dataset_id, p.name || null, p.age || null, p.education || null, p.major || null, p.employee_id || null, originalDataStr]);
-    }
+    var allPersonIds = [];
+    var allCertificates = [];
 
-    const personInsertSQL = `INSERT INTO persons (dataset_id, name, age, education, major, employee_id, original_data) VALUES ${persons.map((_, i) => {
-      const offset = i * 7;
-      return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`;
-    }).join(', ')} RETURNING id`;
+    for (let batchStart = 0; batchStart < persons.length; batchStart += BATCH_SIZE) {
+      const batch = persons.slice(batchStart, batchStart + BATCH_SIZE);
 
-    const flatValues = personValues.flat();
-    const personResult = await pool.query(personInsertSQL, flatValues);
-    const personIds = personResult.rows.map(r => r.id);
-    console.log(`[Batch Import] 人员插入完成: ${persons.length} 条, 耗时: ${Date.now() - startTime}ms`);
+      // 预生成ID，避免依赖RETURNING的不确定性
+      const batchIds = [];
+      const personValues = [];
+      for (const p of batch) {
+        const preGeneratedId = 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        batchIds.push(preGeneratedId);
+        const originalDataStr = p.original_data ? JSON.stringify(p.original_data) : null;
+        const certColsStr = p.certificate_columns ? JSON.stringify(p.certificate_columns) : null;
+        personValues.push([preGeneratedId, dataset_id, p.name || null, p.age || null, p.education || null, p.major || null, p.employee_id || null, originalDataStr, p.tenure || 0, p.graduation_tenure || 0, certColsStr]);
+      }
 
-    const allCertificates = [];
-    for (let i = 0; i < persons.length; i++) {
-      const person = persons[i];
-      if (person.certificates && person.certificates.length > 0) {
-        for (const cert of person.certificates) {
-          allCertificates.push([personIds[i], cert.name || cert, cert.value || (typeof cert === 'string' ? '有' : null)]);
+      // 插入人员（包含预生成的id，不再需要RETURNING）
+      const personInsertSQL = `INSERT INTO persons (id, dataset_id, name, age, education, major, employee_id, original_data, tenure, graduation_tenure, certificate_columns) VALUES ${batch.map((_, i) => {
+        const offset = i * 11;
+        return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11})`;
+      }).join(', ')}`;
+
+      const flatValues = personValues.flat();
+      await pool.query(personInsertSQL, flatValues);
+      allPersonIds.push(...batchIds);
+
+      // 用预生成的ID关联证书（100%确定不为NULL）
+      for (let i = 0; i < batch.length; i++) {
+        const person = batch[i];
+        if (person.certificates && person.certificates.length > 0) {
+          for (const cert of person.certificates) {
+            allCertificates.push([batchIds[i], cert.name || cert, cert.value || (typeof cert === 'string' ? '有' : null)]);
+          }
         }
       }
     }
 
+    console.log(`[Batch Import] 人员插入完成: ${persons.length} 条, 耗时: ${Date.now() - startTime}ms`);
+
     if (allCertificates.length > 0) {
-      const certInsertSQL = `INSERT INTO certificates (person_id, name, value) VALUES ${allCertificates.map((_, i) => {
-        const offset = i * 3;
-        return `($${offset + 1}, $${offset + 2}, $${offset + 3})`;
-      }).join(', ')}`;
-      await pool.query(certInsertSQL, allCertificates.flat());
+      const CERT_BATCH_SIZE = 200;
+      for (let certStart = 0; certStart < allCertificates.length; certStart += CERT_BATCH_SIZE) {
+        const certBatch = allCertificates.slice(certStart, certStart + CERT_BATCH_SIZE);
+        const certInsertSQL = `INSERT INTO certificates (person_id, name, value) VALUES ${certBatch.map((_, i) => {
+          const offset = i * 3;
+          return `($${offset + 1}, $${offset + 2}, $${offset + 3})`;
+        }).join(', ')}`;
+        await pool.query(certInsertSQL, certBatch.flat());
+      }
       console.log(`[Batch Import] 证书插入完成: ${allCertificates.length} 条`);
     }
 
     await pool.query('UPDATE datasets SET count = count + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [persons.length, dataset_id]);
     console.log(`[Batch Import] 批量导入完成！总计: ${persons.length} 人员 + ${allCertificates.length} 证书, 总耗时: ${Date.now() - startTime}ms`);
 
-    res.json(persons.map((p, i) => ({ id: personIds[i], dataset_id, name: p.name, age: p.age, education: p.education, major: p.major, employee_id: p.employee_id })));
+    res.json(persons.map((p, i) => ({ id: allPersonIds[i], dataset_id, name: p.name, age: p.age, education: p.education, major: p.major, employee_id: p.employee_id })));
   } catch (error) {
     console.error('Batch create persons error:', error);
     res.status(500).json({ error: error.message });
@@ -158,7 +259,7 @@ router.post('/batch', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, age, education, major, employee_id, original_data, certificates } = req.body;
+    const { name, age, education, major, employee_id, original_data, certificates, tenure, graduation_tenure, certificate_columns } = req.body;
     const updates = [];
     const params = [];
     let paramIndex = 1;
@@ -168,6 +269,9 @@ router.put('/:id', async (req, res) => {
     if (major !== undefined && major !== null) { updates.push(`major = $${paramIndex++}`); params.push(major); }
     if (employee_id) { updates.push(`employee_id = $${paramIndex++}`); params.push(employee_id); }
     if (original_data !== undefined) { updates.push(`original_data = $${paramIndex++}`); params.push(JSON.stringify(original_data)); }
+    if (tenure !== undefined) { updates.push(`tenure = $${paramIndex++}`); params.push(tenure); }
+    if (graduation_tenure !== undefined) { updates.push(`graduation_tenure = $${paramIndex++}`); params.push(graduation_tenure); }
+    if (certificate_columns !== undefined) { updates.push(`certificate_columns = $${paramIndex++}`); params.push(JSON.stringify(certificate_columns)); }
     if (updates.length > 0) {
       const updateQuery = `UPDATE persons SET ${updates.join(', ')} WHERE id = $${paramIndex}`;
       params.push(id);

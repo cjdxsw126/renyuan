@@ -1,42 +1,108 @@
 const express = require('express');
 const router = express.Router();
 
-const SYSTEM_PROMPT = `你是一个人员筛选系统的智能助手。根据用户的自然语言描述，提取结构化的筛选条件。
+const SYSTEM_PROMPT = `你是人才证书动态阈值筛选解析器。将用户自然语言输入转为严格JSON格式。
 
-可用字段及说明：
-- name: 姓名（精确匹配或模糊匹配）
-- age_min / age_max: 年龄范围（数字，单位：岁）
-- education: 学历（可选值：专科、本科、硕士、博士、不限）
-- major: 专业名称
-- certificates: 证书/资格名称列表
-- tenure_min / tenure_max: 入司年限范围（单位：年）
-- is_full_time: 是否全日制（true/false）
+【输出JSON结构（必须严格遵守）】
+{
+  "cert_pool": ["证书名称1", "证书名称2"],
+  "threshold": 数字N,
+  "match_mode": "AT_LEAST"或"ALL"或"ANY",
+  "name": null或姓名,
+  "age_min": null或数字,
+  "age_max": null或数字,
+  "education": null或学历,
+  "major": null或专业,
+  "tenure_min": null或数字,
+  "tenure_max": null或数字,
+  "explanation": "简短中文说明"
+}
 
-规则：
-1. 如果用户提到"以下"、"以内"、"不超过"，使用对应字段作为最大值
-2. 如果用户提到"以上"、"超过"、"至少"，使用对应字段作为最小值
-3. "左右"、"大约"可以设置合理的上下浮动范围（±2年）
-4. 学历相关：大专=专科，研究生=硕士或博士
-5. 多个条件之间是 AND 关系
+## 二、字段说明
+- **cert_pool**: 证书池，从用户输入中提取的所有候选证书名称数组
+- **threshold**: 整数，需要满足的最少证书数量（N）
+- **match_mode**: 匹配模式
+  - "ALL": 必须具备cert_pool中**每一个**证书（等价于AND）
+  - "AT_LEAST": 从cert_pool中**至少满足threshold个**即可（最常用）
+  - "ANY": 具备cert_pool中**任意1个**即可（OR）
+
+## 三、阈值识别规则（核心！）
+
+### 模式判断优先级：
+
+| 用户表达 | match_mode | threshold |
+|----------|-----------|-----------|
+| "同时具备全部"、"每一个都必须有"、"全部都要有" | ALL | cert_pool长度 |
+| "至少N个"、"N个及以上"、"N个以上"、"拥有N种"、"具备N项" | AT_LEAST | N |
+| "其中N个"、"其中N种"、"满足N项"、"达到N种"、"N种即可"、"N个就行" | AT_LEAST | N |
+| "双证"/"两证" | AT_LEAST | 2 |
+| "三证" | AT_LEAST | 3 |
+| 只列举证书无任何数量词 | ALL | cert_pool长度 |
+| 单个证书查询 | AT_LEAST | 1 |
+
+### 数量词映射表：
+- "一"/"1"/"一个" → 1, "二"/"2"/"两个"/"双" → 2, "三"/"3"/"三个"/"三证" → 3
+- "四"/"4" → 4, "五"/"5" → 5, "六"/"6" → 6
+- "半数以上"/"一半以上" → 向上取整(cert_pool长度/2)
+- "大部分" → 向上取整(cert_pool长度*0.7)
+- "少数" → 向下取整(cert_pool长度*0.3)
+
+### 特殊场景：
+- 用户说"项目经理资格"、"PM资格"、"五种资质" → 自动展开为5类PM证书池:
+  ["高级工程师", "工程咨询师", "信息系统项目管理师", "系统集成项目经理", "PMP"]
+- 用户说"PMP" → cert_pool=["PMP"], threshold=1
+- 用户说"软考相关" → 展开为软考体系常见证书
+
+## 四、证书类别参考（用于展开模糊表述）
+1. 软考体系: 系统分析师、信息系统项目管理师、系统集成项目经理、系统架构设计师、网络规划设计师
+2. 工信部: 高级工程师、通信工程师、网络安全工程师
+3. 云服务: 阿里云认证、腾讯云认证、云架构师
+4. 华为系: HCIA/HCIP/HCIE、H3CSE、CISP、ITSS
+5. 运维: ITIL、CKA/CKS、Vmware、RHCE/RHCA(红帽)
+6. 网络: CCNA/CCNP/CCIE(思科)
+5. 数据库: OCP/OCM(Oracle/甲骨文)、MCSE(微软)
+8. 项目管理: PMP、PgMP
+9. 其他: 全媒体运营师、NDPD、计算机等级考试
+
+## 五、其他筛选条件（可选）
+- name: 姓名
+- age_min / age_max: 年龄范围（数字，岁）
+- education: 学历（专科/本科/硕士/博士）
+- major: 专业
+- tenure_min / tenure_max: 入司年限/毕业年限/工作年限（年）
+
+### 年限识别规则：
+| 用户表达 | tenure_min | tenure_max | 说明 |
+|----------|-----------|-----------|------|
+| "毕业10年"、"10年毕业"、"本科毕业10年" | 10 | null | 至少N年 |
+| "工作10年"、"10年工作经验"、"从业10年" | 10 | null | 至少N年 |
+| "5-10年"、"5到10年"、"5至10年经验" | 5 | 10 | 范围 |
+| "不超过5年"、"5年以内"、"少于5年" | null | 5 | 上限 |
+| "10年以上"、"超过10年"、"10年多" | 10 | null | 下限 |
+
+## 六、示例
+
+输入: "持有高级工程师、PMP，这些证书具备其中两种的人"
+→ cert_pool:["高级工程师","PMP"], threshold=2, match_mode="AT_LEAST"
+
+输入: "同时具备系统架构设计师和PMP"
+→ cert_pool:["系统架构设计师","PMP"], threshold=2, match_mode="ALL"
+
+输入: "项目负责人持有五种资质"
+→ cert_pool:["高级工程师","工程咨询师","信息系统项目管理师","系统集成项目经理","PMP"], threshold=2, match_mode="AT_LEAST"
+
+输入: "有PMP证书的"
+→ cert_pool:["PMP"], threshold=1, match_mode="AT_LEAST"
+
+输入: "本科毕业10年PMP的人"
+→ cert_pool:["PMP"], threshold=1, match_mode="AT_LEAST", education:"本科", tenure_min:10
+
+输入: "35岁以下有5年以上工作经验的软考证书持有人"
+→ cert_pool:["系统分析师","信息系统项目管理师","系统集成项目经理","系统架构设计师","网络规划设计师"], threshold=1, match_mode="AT_LEAST", age_max:34, tenure_min:5
 
 用户输入：{user_input}
 
-请严格输出JSON格式，不要包含任何其他文字：
-{
-  "filters": {
-    "name": null,
-    "age_min": null,
-    "age_max": null,
-    "education": null,
-    "major": null,
-    "certificates": [],
-    "tenure_min": null,
-    "tenure_max": null,
-    "is_full_time": null
-  },
-  "confidence": 0.95,
-  "explanation": "对用户意图的简短解释"
-}`;
+请严格只输出JSON，不要包含其他文字：`;
 
 class AIProvider {
   constructor(config) {
@@ -61,7 +127,7 @@ class DeepSeekProvider extends AIProvider {
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=utf-8',
         'Authorization': `Bearer ${this.apiKey}`
       },
       body: JSON.stringify({
@@ -93,7 +159,7 @@ class QwenProvider extends AIProvider {
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=utf-8',
         'Authorization': `Bearer ${this.apiKey}`
       },
       body: JSON.stringify({
@@ -125,7 +191,7 @@ class DoubaoProvider extends AIProvider {
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=utf-8',
         'Authorization': `Bearer ${this.apiKey}`
       },
       body: JSON.stringify({
@@ -157,7 +223,7 @@ class CustomProvider extends AIProvider {
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=utf-8',
         'Authorization': `Bearer ${this.apiKey}`
       },
       body: JSON.stringify({
@@ -220,8 +286,8 @@ router.post('/smart-search', async (req, res) => {
 
     const userPrompt = SYSTEM_PROMPT.replace('{user_input}', query);
     const messages = [
-      { role: 'system', content: '你是一个专业的数据筛选助手，只输出严格的JSON格式结果。' },
-      { role: 'user', content: userPrompt }
+      { role: 'system', content: SYSTEM_PROMPT.split('用户输入：')[0] },
+      { role: 'user', content: query }
     ];
 
     const startTime = Date.now();
@@ -246,25 +312,51 @@ router.post('/smart-search', async (req, res) => {
       });
     }
 
-    const filters = result.filters || {};
-    
-    Object.keys(filters).forEach(key => {
-      if (filters[key] === null || filters[key] === undefined || filters[key] === '') {
-        delete filters[key];
-      }
-      if (key === 'certificates' && Array.isArray(filters[key])) {
-        filters[key] = filters[key].filter(c => c && c.trim());
-        if (filters[key].length === 0) delete filters[key];
-      }
-    });
+    const newFormat = result.cert_pool !== undefined;
+    let output;
 
-    console.log(`[Smart Search] Parsed filters:`, JSON.stringify(filters));
+    if (newFormat) {
+      let pool = (result.cert_pool || []).map((s) => String(s || '').trim()).filter(Boolean);
+      let thresh = (result.threshold !== undefined && result.threshold !== null) ? parseInt(result.threshold) : 0;
+      const mode = result.match_mode || 'AT_LEAST';
+
+      if (thresh > pool.length && pool.length > 0) {
+        thresh = pool.length;
+      }
+
+      output = {
+        cert_pool: pool,
+        threshold: thresh,
+        match_mode: mode,
+        name: result.name || null,
+        age_min: result.age_min !== null ? Number(result.age_min) : null,
+        age_max: result.age_max !== null ? Number(result.age_max) : null,
+        education: result.education || null,
+        major: result.major || null,
+        tenure_min: result.tenure_min !== null ? Number(result.tenure_min) : null,
+        tenure_max: result.tenure_max !== null ? Number(result.tenure_max) : null,
+        explanation: result.explanation || ''
+      };
+    } else {
+      const filters = result.filters || {};
+      Object.keys(filters).forEach((key) => {
+        if (filters[key] === null || filters[key] === undefined || filters[key] === '') {
+          delete filters[key];
+        }
+        if (key === 'certificates' && Array.isArray(filters[key])) {
+          filters[key] = (filters[key]).filter(c => c && String(c).trim());
+          if ((filters[key]).length === 0) delete filters[key];
+        }
+      });
+      output = { ...filters, _legacy: true, explanation: result.explanation || '' };
+    }
+
+    console.log(`[Smart Search] Parsed:`, JSON.stringify(output).substring(0, 200));
 
     res.json({
       success: true,
-      filters: filters,
+      ...output,
       confidence: result.confidence || 0.8,
-      explanation: result.explanation || '',
       provider: provider,
       elapsed: elapsed
     });

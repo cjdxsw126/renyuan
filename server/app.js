@@ -91,15 +91,24 @@ async function initDatabase() {
       )
     `);
     
-    // 修复已存在的表结构（如果是从旧版本升级）
+    // 修复已存在的表结构（如果是从旧版本升级） - SQLite兼容
     try {
-      await pool.query(`ALTER TABLE persons ALTER COLUMN id TYPE TEXT USING id::TEXT`);
-      await pool.query(`ALTER TABLE persons ALTER COLUMN dataset_id TYPE TEXT USING dataset_id::TEXT`);
+      const tableInfo = await pool.query('PRAGMA table_info(persons)');
+      const existingColumns = tableInfo.rows.map(r => r.name);
+
+      if (!existingColumns.includes('tenure')) {
+        await pool.query(`ALTER TABLE persons ADD COLUMN tenure REAL DEFAULT 0`);
+      }
+      if (!existingColumns.includes('graduation_tenure')) {
+        await pool.query(`ALTER TABLE persons ADD COLUMN graduation_tenure REAL DEFAULT 0`);
+      }
+      if (!existingColumns.includes('certificate_columns')) {
+        await pool.query(`ALTER TABLE persons ADD COLUMN certificate_columns TEXT DEFAULT '{}'`);
+      }
+      console.log('✅ 人员表新增字段 (tenure, graduation_tenure, certificate_columns) 已就绪');
     } catch (e) {
-      // 忽略错误（可能是类型已经正确）
+      console.error('⚠️ 添加字段时出错:', e.message);
     }
-    
-    console.log('✅ 人员表 (persons) 就绪');
 
     // 创建证书表
     await pool.query(`
@@ -111,15 +120,14 @@ async function initDatabase() {
       )
     `);
     
-    // 修复已存在的证书表
+    // 修复已存在的证书表 - SQLite兼容
     try {
-      await pool.query(`ALTER TABLE certificates ALTER COLUMN id TYPE TEXT USING id::TEXT`);
-      await pool.query(`ALTER TABLE certificates ALTER COLUMN person_id TYPE TEXT USING person_id::TEXT`);
+      const certTableInfo = await pool.query('PRAGMA table_info(certificates)');
+      const certColumns = certTableInfo.rows.map(r => r.name);
+      console.log(`✅ 证书表 (certificates) 就绪, 列: [${certColumns.join(', ')}]`);
     } catch (e) {
-      // 忽略错误
+      console.log('✅ 证书表 (certificates) 就绪');
     }
-    
-    console.log('✅ 证书表 (certificates) 就绪');
 
     // 检查并创建默认管理员用户
     const adminCheck = await pool.query('SELECT * FROM users WHERE username = $1', ['admin']);

@@ -17,7 +17,7 @@ export interface User {
 }
 
 export interface Person {
-  id: number;
+  id: number | string;
   name: string;
   age: number;
   education: string;
@@ -25,7 +25,11 @@ export interface Person {
   certificates: string[];
   employeeId: string;
   certificateColumns: { [key: string]: string };
+  tenure: number;
+  graduationTenure: number;
   originalData: any;
+  _matchScore?: number;
+  _matchDetails?: string;
 }
 
 export interface DataSet {
@@ -47,6 +51,11 @@ const getApiBaseUrl = () => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
+
+// 本地存储键名（仅用于UI状态，不用于数据持久化）
+const LOCAL_STORAGE_KEYS = {
+  CURRENT_DATASET: 'renyuan_current_dataset',
+};
 
 // snake_case 转 camelCase
 function toCamelCase(obj: any): any {
@@ -88,17 +97,15 @@ function toSnakeCase(obj: any): any {
   return obj;
 }
 
-// 存储服务
+// 存储服务 - 全部使用后端API，数据永久保存到数据库
 export const storageService = {
-  // 读取所有用户
+  // ===== 用户管理（后端API）=====
+
   getAllUsers: async (): Promise<User[]> => {
     try {
       const response = await fetch(`${API_BASE_URL}/users`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch users');
-      }
+      if (!response.ok) throw new Error('Failed to fetch users');
       const users = await response.json();
-      console.log('✅ 读取用户数据成功:', users.length, '个用户');
       return toCamelCase(users);
     } catch (e) {
       console.error('❌ 读取用户数据失败', e);
@@ -106,23 +113,15 @@ export const storageService = {
     }
   },
 
-  // 创建用户
   createUser: async (userData: Omit<User, 'id' | 'createdAt'>): Promise<User> => {
     try {
       const response = await fetch(`${API_BASE_URL}/users`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(toSnakeCase(userData))
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to create user');
-      }
-
+      if (!response.ok) throw new Error('Failed to create user');
       const user = await response.json();
-      console.log('✅ 创建用户成功:', user.username);
       return toCamelCase(user);
     } catch (e) {
       console.error('❌ 创建用户失败', e);
@@ -130,13 +129,10 @@ export const storageService = {
     }
   },
 
-  // 根据ID获取用户
   getUserById: async (id: string): Promise<User | null> => {
     try {
       const response = await fetch(`${API_BASE_URL}/users/${id}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch user');
-      }
+      if (!response.ok) throw new Error('Failed to fetch user');
       const user = await response.json();
       return toCamelCase(user);
     } catch (e) {
@@ -145,7 +141,6 @@ export const storageService = {
     }
   },
 
-  // 根据用户名获取用户
   getUserByUsername: async (username: string): Promise<User | null> => {
     try {
       const users = await storageService.getAllUsers();
@@ -157,23 +152,15 @@ export const storageService = {
     }
   },
 
-  // 更新用户
   updateUser: async (user: User): Promise<User> => {
     try {
       const response = await fetch(`${API_BASE_URL}/users/${user.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(toSnakeCase(user))
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to update user');
-      }
-
+      if (!response.ok) throw new Error('Failed to update user');
       const updatedUser = await response.json();
-      console.log('✅ 更新用户成功:', updatedUser.username);
       return toCamelCase(updatedUser);
     } catch (e) {
       console.error('❌ 更新用户失败', e);
@@ -181,33 +168,23 @@ export const storageService = {
     }
   },
 
-  // 删除用户
   deleteUser: async (id: string): Promise<void> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/${id}`, {
-        method: 'DELETE'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete user');
-      }
-      
-      console.log('✅ 删除用户成功:', id);
+      const response = await fetch(`${API_BASE_URL}/users/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete user');
     } catch (e) {
       console.error('❌ 删除用户失败', e);
       throw e;
     }
   },
 
-  // 读取所有数据集
+  // ===== 数据集管理（后端API）=====
+
   getAllDataSets: async (): Promise<DataSet[]> => {
     try {
       const response = await fetch(`${API_BASE_URL}/datasets`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch datasets');
-      }
+      if (!response.ok) throw new Error('Failed to fetch datasets');
       const dataSets = await response.json();
-      console.log('✅ 读取数据集成功:', dataSets.length, '个数据集');
       return toCamelCase(dataSets);
     } catch (e) {
       console.error('❌ 读取数据集失败', e);
@@ -219,18 +196,15 @@ export const storageService = {
     try {
       const response = await fetch(`${API_BASE_URL}/datasets`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(toSnakeCase(dataSetData))
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: dataSetData.name,
+          count: 0,
+          certificate_options: dataSetData.certificateOptions || []
+        })
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to create dataset');
-      }
-
+      if (!response.ok) throw new Error('Failed to create dataset');
       const dataSet = await response.json();
-      console.log('✅ 创建数据集成功:', dataSet.name);
       return toCamelCase(dataSet);
     } catch (e) {
       console.error('❌ 创建数据集失败', e);
@@ -238,13 +212,10 @@ export const storageService = {
     }
   },
 
-  // 根据ID获取数据集
   getDataSetById: async (id: string): Promise<DataSet | null> => {
     try {
       const response = await fetch(`${API_BASE_URL}/datasets/${id}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch dataset');
-      }
+      if (!response.ok) throw new Error('Failed to fetch dataset');
       const dataSet = await response.json();
       return toCamelCase(dataSet);
     } catch (e) {
@@ -253,117 +224,139 @@ export const storageService = {
     }
   },
 
-  // 删除数据集
   deleteDataSet: async (id: string): Promise<void> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/datasets/${id}`, {
-        method: 'DELETE'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete dataset');
-      }
-      
-      console.log('✅ 删除数据集成功:', id);
+      const response = await fetch(`${API_BASE_URL}/datasets/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete dataset');
     } catch (e) {
       console.error('❌ 删除数据集失败', e);
       throw e;
     }
   },
 
-  // 保存当前数据集ID
+  // ===== 当前数据集ID（localStorage，仅UI状态）=====
+
   saveCurrentDataSetId: (id: string): void => {
     try {
-      localStorage.setItem('currentDataSetId', id);
-      console.log('✅ 当前数据集ID已保存:', id);
+      localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_DATASET, id);
     } catch (e) {
       console.error('❌ 保存当前数据集ID失败', e);
     }
   },
 
-  // 获取当前数据集ID
   getCurrentDataSetId: (): string | null => {
     try {
-      return localStorage.getItem('currentDataSetId');
+      return localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_DATASET);
     } catch (e) {
       console.error('❌ 获取当前数据集ID失败', e);
       return null;
     }
   },
 
-  // 批量创建人员
+  // ===== 人员数据管理（后端API）=====
+
   batchCreatePersons: async (datasetId: string, persons: any[]): Promise<any[]> => {
     try {
+      console.log('📦 使用后端存储模式 - 批量导入人员数据');
       const response = await fetch(`${API_BASE_URL}/persons/batch`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ dataset_id: datasetId, persons: toSnakeCase(persons) })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dataset_id: datasetId,
+          persons: persons.map(p => ({
+            name: p.name,
+            age: p.age || null,
+            education: p.education || null,
+            major: p.major || null,
+            employee_id: p.employeeId || null,
+            original_data: p.originalData || null,
+            tenure: p.tenure || 0,
+            graduation_tenure: p.graduationTenure || 0,
+            certificate_columns: p.certificateColumns || {},
+            certificates: (p.certificates || []).map((cert: any) =>
+              typeof cert === 'string'
+                ? { name: cert, value: '有' }
+                : { name: cert.name || cert, value: cert.value || '有' }
+            )
+          }))
+        })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create persons');
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || `批量导入失败 (${response.status})`);
       }
 
-      const createdPersons = await response.json();
-      console.log('✅ 批量创建人员成功:', createdPersons.length, '人');
-      return toCamelCase(createdPersons);
+      const result = await response.json();
+      console.log(`✅ 后端批量导入完成: ${persons.length} 条记录已保存到数据库`);
+      return result;
     } catch (e) {
       console.error('❌ 批量创建人员失败', e);
       throw e;
     }
   },
 
-  getPersonsByDatasetId: async (datasetId: string): Promise<any[]> => {
+  getPersonsByDatasetId: async (datasetId: string): Promise<Person[]> => {
     try {
       const response = await fetch(`${API_BASE_URL}/persons/dataset/${datasetId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch persons');
-      }
-      const persons = await response.json();
-      return toCamelCase(persons);
+      if (!response.ok) throw new Error('Failed to fetch persons');
+
+      const rawPersons = await response.json();
+
+      // 转换为前端Person格式
+      return rawPersons.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        age: p.age || 0,
+        education: p.education || '',
+        major: p.major || '',
+        employeeId: p.employee_id || '',
+        certificates: (p.certificates || []).map((c: any) => c.name || c),
+        certificateColumns: p.certificate_columns || {},
+        tenure: p.tenure || 0,
+        graduationTenure: p.graduation_tenure || 0,
+        originalData: p.original_data || {}
+      }));
     } catch (e) {
       console.error('❌ 获取人员数据失败', e);
       return [];
     }
   },
 
-  // 清空所有数据
+  // ===== 数据清空 =====
+
   clearAll: (): void => {
     try {
-      localStorage.removeItem('currentDataSetId');
-      localStorage.removeItem('filters');
-      console.log('✅ 所有本地数据已清空');
+      localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_DATASET);
     } catch (e) {
-      console.error('❌ 清空数据失败', e);
+      console.error('❌ 清空本地状态失败', e);
     }
   },
 
-  // AI 智能搜索
+  // ===== AI 智能搜索（后端API）=====
+
   smartSearch: async (query: string, provider: string = 'deepseek', config?: any): Promise<any> => {
     try {
       const response = await fetch(`${API_BASE_URL}/ai/smart-search`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
         body: JSON.stringify({ query, provider, config })
       });
-      
+
       const contentType = response.headers.get('content-type') || '';
       if (!contentType.includes('json')) {
         const text = await response.text();
         if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-          throw new Error('AI 服务未部署，请先将代码上传到 GitHub 并重新部署 Render');
+          throw new Error('AI 服务未部署');
         }
         throw new Error(`服务器返回异常响应 (${response.status})`);
       }
-      
+
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || `请求失败 (${response.status})`);
       }
       const result = await response.json();
-      console.log('✅ AI 智能搜索成功:', result);
       return result;
     } catch (e: any) {
       console.error('❌ AI 智能搜索失败', e);
@@ -374,7 +367,6 @@ export const storageService = {
     }
   },
 
-  // 获取可用的 AI 提供商列表
   getAIProviders: async (): Promise<any[]> => {
     try {
       const response = await fetch(`${API_BASE_URL}/ai/providers`);
@@ -386,17 +378,15 @@ export const storageService = {
     }
   },
 
-  // 保存 AI 配置到本地
+  // AI 配置（localStorage，纯客户端配置）
   saveAIConfig: (config: any): void => {
     try {
       localStorage.setItem('ai_config', JSON.stringify(config));
-      console.log('✅ AI 配置已保存');
     } catch (e) {
       console.error('❌ 保存 AI 配置失败', e);
     }
   },
 
-  // 获取本地保存的 AI 配置
   getAIConfig: (): any => {
     try {
       const config = localStorage.getItem('ai_config');

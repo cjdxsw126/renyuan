@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+server/node_modules/
+
+# Build output
+dist/
+
+# Database files (SQLite)
+*.db
+database.db
+
+# Environment variables (包含敏感信息)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Python cache
+python-backend/__pycache__/
+*.pyc
+
+# Test & debug HTML files (开发调试用，不需要提交)
+test-*.html
+*test*.html
+*-test.*
+diagnose-*.cjs
+deploy-*.html
+upload-*.html
+data-save-*.html
+login-test.html
+github-pages-deploy.html
+github-upload.html
+indexeddb-*.html
+localstorage-*.html
+
+# Test scripts
+test-api.cjs
+render.yaml
+
+# CSV data files
+*.csv
+
+# Vercel
+.vercel
+
+# OS generated files
+Thumbs.db
+Desktop.ini
