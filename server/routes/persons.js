@@ -222,7 +222,8 @@ router.post('/batch', async (req, res) => {
         const person = batch[i];
         if (person.certificates && person.certificates.length > 0) {
           for (const cert of person.certificates) {
-            allCertificates.push([batchIds[i], cert.name || cert, cert.value || (typeof cert === 'string' ? '有' : null)]);
+            const certId = 'c_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            allCertificates.push([certId, batchIds[i], cert.name || cert, cert.value || (typeof cert === 'string' ? '有' : null)]);
           }
         }
       }
@@ -234,9 +235,9 @@ router.post('/batch', async (req, res) => {
       const CERT_BATCH_SIZE = 200;
       for (let certStart = 0; certStart < allCertificates.length; certStart += CERT_BATCH_SIZE) {
         const certBatch = allCertificates.slice(certStart, certStart + CERT_BATCH_SIZE);
-        const certInsertSQL = `INSERT INTO certificates (person_id, name, value) VALUES ${certBatch.map((_, i) => {
-          const offset = i * 3;
-          return `($${offset + 1}, $${offset + 2}, $${offset + 3})`;
+        const certInsertSQL = `INSERT INTO certificates (id, person_id, name, value) VALUES ${certBatch.map((_, i) => {
+          const offset = i * 4;
+          return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4})`;
         }).join(', ')}`;
         await pool.query(certInsertSQL, certBatch.flat());
       }
