@@ -196,6 +196,12 @@ router.post('/batch', async (req, res) => {
     var allPersonIds = [];
     var allCertificates = [];
     let useNumericId = false;
+    let idCounter = 1;
+
+    const generateSafeNumericId = () => {
+      idCounter++;
+      return Math.floor(Math.random() * 2000000000) + idCounter;
+    };
 
     for (let batchStart = 0; batchStart < persons.length; batchStart += BATCH_SIZE) {
       const batch = persons.slice(batchStart, batchStart + BATCH_SIZE);
@@ -206,7 +212,7 @@ router.post('/batch', async (req, res) => {
       for (const p of batch) {
         let preGeneratedId;
         if (useNumericId) {
-          preGeneratedId = Date.now() + Math.floor(Math.random() * 1000000);
+          preGeneratedId = generateSafeNumericId();
         } else {
           preGeneratedId = 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         }
@@ -226,8 +232,8 @@ router.post('/batch', async (req, res) => {
         await pool.query(personInsertSQL, flatValues);
         allPersonIds.push(...batchIds);
       } catch (insertError) {
-        if (insertError.message && insertError.message.includes('invalid input syntax') && !useNumericId) {
-          console.log(`⚠️ 字符串ID插入失败，切换为数字ID模式...`);
+        if ((insertError.message && (insertError.message.includes('invalid input syntax') || insertError.message.includes('out of range'))) && !useNumericId) {
+          console.log(`⚠️ 字符串ID插入失败，切换为安全数字ID模式...`);
           console.log(`   错误详情: ${insertError.message}`);
           useNumericId = true;
 
@@ -235,7 +241,7 @@ router.post('/batch', async (req, res) => {
           const numericPersonValues = [];
 
           for (const p of batch) {
-            const numericId = Date.now() + Math.floor(Math.random() * 1000000);
+            const numericId = generateSafeNumericId();
             numericBatchIds.push(numericId);
             const originalDataStr = p.original_data ? JSON.stringify(p.original_data) : null;
             const certColsStr = p.certificate_columns ? JSON.stringify(p.certificate_columns) : null;
@@ -249,7 +255,7 @@ router.post('/batch', async (req, res) => {
 
           await pool.query(personInsertSQL, numericPersonValues.flat());
           allPersonIds.push(...numericBatchIds);
-          console.log(`✅ 使用数字ID模式成功插入本批数据`);
+          console.log(`✅ 使用安全数字ID模式成功插入本批数据`);
         } else {
           throw insertError;
         }
@@ -258,8 +264,9 @@ router.post('/batch', async (req, res) => {
       for (let i = 0; i < batch.length; i++) {
         const person = batch[i];
         if (person.certificates && person.certificates.length > 0) {
+          const actualId = batchIds[i] || allPersonIds[allPersonIds.length - batch.length + i] || generateSafeNumericId();
           for (const cert of person.certificates) {
-            allCertificates.push([batchIds[i] || allPersonIds[allPersonIds.length - batch.length + i], cert.name || cert, cert.value || (typeof cert === 'string' ? '有' : null)]);
+            allCertificates.push([actualId, cert.name || cert, cert.value || (typeof cert === 'string' ? '有' : null)]);
           }
         }
       }
@@ -271,11 +278,33 @@ router.post('/batch', async (req, res) => {
       const CERT_BATCH_SIZE = 200;
       for (let certStart = 0; certStart < allCertificates.length; certStart += CERT_BATCH_SIZE) {
         const certBatch = allCertificates.slice(certStart, certStart + CERT_BATCH_SIZE);
-        const certInsertSQL = `INSERT INTO certificates (person_id, name, value) VALUES ${certBatch.map((_, i) => {
-          const offset = i * 3;
-          return `($${offset + 1}, $${offset + 2}, $${offset + 3})`;
-        }).join(', ')}`;
-        await pool.query(certInsertSQL, certBatch.flat());
+        
+        try {
+          const certInsertSQL = `INSERT INTO certificates (person_id, name, value) VALUES ${certBatch.map((_, i) => {
+            const offset = i * 3;
+            return `($${offset + 1}, $${offset + 2}, $${offset + 3})`;
+          }).join(', ')}`;
+          await pool.query(certInsertSQL, certBatch.flat());
+        } catch (certError) {
+          if (certError.message && (certError.message.includes('invalid input syntax') || certError.message.includes('out of range'))) {
+            console.log(`⚠️ 证书插入失败，转换 person_id 为数字...`);
+            
+            const fixedCertBatch = certBatch.map(cert => [
+              typeof cert[0] === 'string' ? generateSafeNumericId() : cert[0],
+              cert[1],
+              cert[2]
+            ]);
+            
+            const certInsertSQL = `INSERT INTO certificates (person_id, name, value) VALUES ${fixedCertBatch.map((_, i) => {
+              const offset = i * 3;
+              return `($${offset + 1}, $${offset + 2}, $${offset + 3})`;
+            }).join(', ')}`;
+            await pool.query(certInsertSQL, fixedCertBatch.flat());
+            console.log(`✅ 证书使用数字 person_id 插入成功`);
+          } else {
+            throw certError;
+          }
+        }
       }
       console.log(`[Batch Import] 证书插入完成: ${allCertificates.length} 条`);
     }
