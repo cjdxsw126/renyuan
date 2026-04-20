@@ -1351,7 +1351,7 @@ const App: React.FC = () => {
           });
           
           // 延迟一下，让用户看到100%的进度
-          setTimeout(() => {
+          setTimeout(async () => {
             // 生成导入反馈信息
             let feedbackMessage = `文件上传成功！导入了 ${validPeople.length} 条记录`;
             
@@ -1453,18 +1453,27 @@ const App: React.FC = () => {
             // 检查是否有同名文件已存在
             const existingDatasetWithSameName = dataSets.find(ds => ds.name === file.name);
             
-            if (existingDatasetWithSameName) {
-              // 文件名完全相同，询问是否覆盖元数据
-              if (window.confirm(`文件名 "${file.name}" 已存在。是否覆盖现有文件的元数据？\n\n点击"确定"覆盖，点击"取消"导入为新文件。`)) {
-                setCurrentDataSetId(existingDatasetWithSameName.id);
-                handleDataSetCreation('overwrite');
+            try {
+              if (existingDatasetWithSameName) {
+                // 文件名完全相同，询问是否覆盖元数据
+                if (window.confirm(`文件名 "${file.name}" 已存在。是否覆盖现有文件的元数据？\n\n点击"确定"覆盖，点击"取消"导入为新文件。`)) {
+                  setCurrentDataSetId(existingDatasetWithSameName.id);
+                  await handleDataSetCreation('overwrite');
+                } else {
+                  const dataSetName = prompt('请输入新数据集合的名称:', file.name);
+                  await handleDataSetCreation('new', dataSetName || file.name);
+                }
               } else {
-                const dataSetName = prompt('请输入新数据集合的名称:', file.name);
-                handleDataSetCreation('new', dataSetName || file.name);
+                // 文件名不同，直接创建新的数据集合
+                await handleDataSetCreation('new', file.name);
               }
-            } else {
-              // 文件名不同，直接创建新的数据集合
-              handleDataSetCreation('new', file.name);
+            } catch (error: any) {
+              console.error('数据集处理失败:', error);
+              const errorMsg = error?.message || error || '未知错误';
+              displayAlert(`数据存储失败: ${errorMsg}`, 'error');
+              addLog(`❌ 数据存储失败: ${errorMsg}`);
+              setUploading(false);
+              setUploadProgress(0);
             }
           }, 500);
         } catch (error) {
