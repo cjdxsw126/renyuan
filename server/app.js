@@ -35,7 +35,7 @@ app.get('/api/health', (req, res) => {
 // 自动初始化数据库表结构
 async function initDatabase() {
   try {
-    console.log('🚀 检查并初始化数据库表结构...\n');
+    console.log('🚀 初始化数据库表结构...\n');
 
     // 创建用户表
     await pool.query(`
@@ -77,7 +77,33 @@ async function initDatabase() {
     `);
     console.log('✅ 数据集表 (datasets) 就绪');
 
-    // 创建人员表
+    // ========== 彻底重建人员表和证书表（如果类型不对） ==========
+    if (process.env.DATABASE_URL) {
+      try {
+        const colResult = await pool.query(`
+          SELECT column_name, data_type FROM information_schema.columns
+          WHERE table_name = 'persons' AND column_name IN ('id', 'dataset_id', 'person_id')
+        `);
+        
+        const needsRebuild = colResult.rows.some(col => 
+          ['id', 'dataset_id'].includes(col.column_name) && 
+          ['integer', 'bigint', 'serial', 'int4'].includes(col.data_type)
+        );
+
+        if (needsRebuild) {
+          console.log('\n⚠️  发现旧版表结构（INTEGER 类型ID），正在彻底重建...');
+          
+          try { await pool.query('DROP TABLE IF EXISTS certificates'); } catch(e) {}
+          try { await pool.query('DROP TABLE IF EXISTS persons'); } catch(e) {}
+          
+          console.log('✅ 已删除旧表');
+        }
+      } catch(e) {
+        console.log('📋 首次部署或 SQLite 模式，跳过检测');
+      }
+    }
+
+    // 创建人员表（完整结构，包含所有字段）
     await pool.query(`
       CREATE TABLE IF NOT EXISTS persons (
         id TEXT PRIMARY KEY,
@@ -87,60 +113,13 @@ async function initDatabase() {
         education TEXT,
         major TEXT,
         employee_id TEXT,
-        original_data TEXT
+        original_data TEXT,
+        tenure REAL DEFAULT 0,
+        graduation_tenure REAL DEFAULT 0,
+        certificate_columns TEXT DEFAULT '{}'
       )
     `);
-    
-    // 修复已存在的表结构（如果是从旧版本升级） - 兼容 PostgreSQL 和 SQLite
-    try {
-      let existingColumns = [];
-
-      if (process.env.DATABASE_URL) {
-        // PostgreSQL: 查询 information_schema（包含数据类型）
-        const colResult = await pool.query(`
-          SELECT column_name, data_type FROM information_schema.columns
-          WHERE table_name = 'persons'
-        `);
-        existingColumns = colResult.rows.map(r => r.column_name);
-
-        // 检查并修复所有 TEXT 类型的列（INTEGER → TEXT）
-        const textColumns = ['id', 'dataset_id'];  // 所有应该是 TEXT 的列
-        for (const colName of textColumns) {
-          const col = colResult.rows.find(r => r.column_name === colName);
-          if (col && (col.data_type === 'integer' || col.data_type === 'bigint' || col.data_type === 'serial' || col.data_type === 'int4')) {
-            console.log(`⚠️  发现 persons.${colName} 列类型为 ${col.data_type}，正在修改为 TEXT...`);
-            try {
-              await pool.query(`ALTER TABLE persons ALTER COLUMN ${colName} TYPE TEXT USING ${colName}::TEXT`);
-              console.log(`✅ persons.${colName} 列已修改为 TEXT`);
-            } catch (alterErr) {
-              console.error(`❌ 修改 persons.${colName} 列失败:`, alterErr.message);
-            }
-          }
-        }
-      } else {
-        // SQLite: PRAGMA table_info
-        const tableInfo = await pool.query('PRAGMA table_info(persons)');
-        existingColumns = tableInfo.rows.map(r => r.name);
-      }
-
-      console.log(`📋 人员表现有列: [${existingColumns.join(', ')}]`);
-
-      if (!existingColumns.includes('tenure')) {
-        await pool.query(`ALTER TABLE persons ADD COLUMN tenure REAL DEFAULT 0`);
-        console.log('✅ 已添加 tenure 列');
-      }
-      if (!existingColumns.includes('graduation_tenure')) {
-        await pool.query(`ALTER TABLE persons ADD COLUMN graduation_tenure REAL DEFAULT 0`);
-        console.log('✅ 已添加 graduation_tenure 列');
-      }
-      if (!existingColumns.includes('certificate_columns')) {
-        await pool.query(`ALTER TABLE persons ADD COLUMN certificate_columns TEXT DEFAULT '{}'`);
-        console.log('✅ 已添加 certificate_columns 列');
-      }
-      console.log('✅ 人员表新增字段已就绪');
-    } catch (e) {
-      console.error('⚠️ 添加字段时出错:', e.message);
-    }
+    console.log('✅ 人员表 (persons) 就绪 - 完整结构（TEXT ID）');
 
     // 创建证书表
     await pool.query(`
@@ -151,31 +130,7 @@ async function initDatabase() {
         value TEXT
       )
     `);
-
-    // 修复证书表列类型（PostgreSQL 兼容） - 检查所有 TEXT 列
-    if (process.env.DATABASE_URL) {
-      try {
-        const certColResult = await pool.query(`
-          SELECT column_name, data_type FROM information_schema.columns
-          WHERE table_name = 'certificates'
-        `);
-        const certTextColumns = ['id', 'person_id'];
-        for (const colName of certTextColumns) {
-          const col = certColResult.rows.find(r => r.column_name === colName);
-          if (col && (col.data_type === 'integer' || col.data_type === 'bigint' || col.data_type === 'serial' || col.data_type === 'int4')) {
-            console.log(`⚠️  证书表 ${colName} 列类型为 ${col.data_type}，正在修改为 TEXT...`);
-            try {
-              await pool.query(`ALTER TABLE certificates ALTER COLUMN ${colName} TYPE TEXT USING ${colName}::TEXT`);
-              console.log(`✅ certificates.${colName} 列已修改为 TEXT`);
-            } catch (alterErr) {
-              console.error(`❌ 修改证书表 ${colName} 列失败:`, alterErr.message);
-            }
-          }
-        }
-      } catch (certErr) {
-        console.error('⚠️ 检查证书表结构出错:', certErr.message);
-      }
-    }
+    console.log('✅ 证书表 (certificates) 就绪 - TEXT 类型');
     
     // 修复已存在的证书表 - SQLite兼容
     try {
