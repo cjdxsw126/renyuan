@@ -23,10 +23,28 @@ if (databaseUrl) {
   });
 
 } else if (isProduction) {
-  // 生产环境但没有 DATABASE_URL - 报错
-  console.error('❌ 错误: 生产环境必须设置 DATABASE_URL 环境变量');
-  console.error('   请在 Render Dashboard 中添加 DATABASE_URL');
-  process.exit(1);
+  // 生产环境 - 使用 SQLite + Render 持久化磁盘
+  const sqlite3 = require('sqlite3').verbose();
+  
+  // Render 持久化磁盘路径或默认路径
+  const dataDir = process.env.RENDER_PERSISTENT_DIR || path.join(__dirname, 'data');
+  const fs = require('fs');
+  
+  // 确保数据目录存在
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+  
+  const dbPath = path.join(dataDir, 'database.db');
+  console.log(`📦 生产环境使用 SQLite 数据库: ${dbPath}`);
+  
+  const db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+      console.error('❌ SQLite 数据库连接错误:', err);
+    } else {
+      console.log('✅ 已连接到 SQLite 数据库 (生产模式)');
+    }
+  });
   
 } else {
   // SQLite 配置（用于本地开发）

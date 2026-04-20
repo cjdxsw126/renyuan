@@ -258,38 +258,53 @@ export const storageService = {
   batchCreatePersons: async (datasetId: string, persons: any[]): Promise<any[]> => {
     try {
       console.log('📦 使用后端存储模式 - 批量导入人员数据');
-      const response = await fetch(`${API_BASE_URL}/persons/batch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dataset_id: datasetId,
-          persons: persons.map(p => ({
-            name: p.name,
-            age: p.age || null,
-            education: p.education || null,
-            major: p.major || null,
-            employee_id: p.employeeId || null,
-            original_data: p.originalData || null,
-            tenure: p.tenure || 0,
-            graduation_tenure: p.graduationTenure || 0,
-            certificate_columns: p.certificateColumns || {},
-            certificates: (p.certificates || []).map((cert: any) =>
-              typeof cert === 'string'
-                ? { name: cert, value: '有' }
-                : { name: cert.name || cert, value: cert.value || '有' }
-            )
-          }))
-        })
-      });
+      const BATCH_SIZE = 50;
+      const allResults = [];
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || `批量导入失败 (${response.status})`);
+      for (let i = 0; i < persons.length; i += BATCH_SIZE) {
+        const batch = persons.slice(i, i + BATCH_SIZE);
+        console.log(`📤 正在发送第 ${Math.floor(i / BATCH_SIZE) + 1} 批 (${batch.length} 条)...`);
+
+        const response = await fetch(`${API_BASE_URL}/persons/batch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dataset_id: datasetId,
+            persons: batch.map(p => ({
+              name: p.name,
+              age: p.age || null,
+              education: p.education || null,
+              major: p.major || null,
+              employee_id: p.employeeId || null,
+              original_data: p.originalData || null,
+              tenure: p.tenure || 0,
+              graduation_tenure: p.graduationTenure || 0,
+              certificate_columns: p.certificateColumns || {},
+              certificates: (p.certificates || []).map((cert: any) =>
+                typeof cert === 'string'
+                  ? { name: cert, value: '有' }
+                  : { name: cert.name || cert, value: cert.value || '有' }
+              )
+            }))
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || `批量导入失败 (${response.status}) - 第 ${Math.floor(i / BATCH_SIZE) + 1} 批`);
+        }
+
+        const result = await response.json();
+        allResults.push(...(result.persons || result));
+
+        // 避免请求过快
+        if (i + BATCH_SIZE < persons.length) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
       }
 
-      const result = await response.json();
       console.log(`✅ 后端批量导入完成: ${persons.length} 条记录已保存到数据库`);
-      return result;
+      return allResults;
     } catch (e) {
       console.error('❌ 批量创建人员失败', e);
       throw e;

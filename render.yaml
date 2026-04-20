@@ -1,0 +1,23 @@
+services:
+  # 后端 API 服务
+  - type: web
+    name: renyuan-api
+    runtime: node
+    plan: free
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    disk:
+      name: sqlite-data
+      mountPath: /opt/render/project/server/data
+      sizeGB: 1
+
+# 注意事项：
+# 1. 需要在 Render 控制台设置环境变量（如果有）
+# 2. SQLite 数据库文件会保存在 /opt/render/project/server/data/database.db
+# 3. 免费计划会在15分钟无活动后休眠，首次请求会有延迟
+# 4. 部署完成后，API 地址为：https://renyuan-api.onrender.com/api
