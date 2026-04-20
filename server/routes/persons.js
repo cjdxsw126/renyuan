@@ -195,37 +195,71 @@ router.post('/batch', async (req, res) => {
 
     var allPersonIds = [];
     var allCertificates = [];
+    let useNumericId = false;
 
     for (let batchStart = 0; batchStart < persons.length; batchStart += BATCH_SIZE) {
       const batch = persons.slice(batchStart, batchStart + BATCH_SIZE);
 
-      // 预生成ID，避免依赖RETURNING的不确定性
       const batchIds = [];
       const personValues = [];
+
       for (const p of batch) {
-        const preGeneratedId = 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        let preGeneratedId;
+        if (useNumericId) {
+          preGeneratedId = Date.now() + Math.floor(Math.random() * 1000000);
+        } else {
+          preGeneratedId = 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
         batchIds.push(preGeneratedId);
         const originalDataStr = p.original_data ? JSON.stringify(p.original_data) : null;
         const certColsStr = p.certificate_columns ? JSON.stringify(p.certificate_columns) : null;
         personValues.push([preGeneratedId, dataset_id, p.name || null, p.age || null, p.education || null, p.major || null, p.employee_id || null, originalDataStr, p.tenure || 0, p.graduation_tenure || 0, certColsStr]);
       }
 
-      // 插入人员（包含预生成的id，不再需要RETURNING）
-      const personInsertSQL = `INSERT INTO persons (id, dataset_id, name, age, education, major, employee_id, original_data, tenure, graduation_tenure, certificate_columns) VALUES ${batch.map((_, i) => {
-        const offset = i * 11;
-        return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11})`;
-      }).join(', ')}`;
+      try {
+        const personInsertSQL = `INSERT INTO persons (id, dataset_id, name, age, education, major, employee_id, original_data, tenure, graduation_tenure, certificate_columns) VALUES ${batch.map((_, i) => {
+          const offset = i * 11;
+          return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11})`;
+        }).join(', ')}`;
 
-      const flatValues = personValues.flat();
-      await pool.query(personInsertSQL, flatValues);
-      allPersonIds.push(...batchIds);
+        const flatValues = personValues.flat();
+        await pool.query(personInsertSQL, flatValues);
+        allPersonIds.push(...batchIds);
+      } catch (insertError) {
+        if (insertError.message && insertError.message.includes('invalid input syntax') && !useNumericId) {
+          console.log(`⚠️ 字符串ID插入失败，切换为数字ID模式...`);
+          console.log(`   错误详情: ${insertError.message}`);
+          useNumericId = true;
 
-      // 用预生成的ID关联证书（100%确定不为NULL）
+          const numericBatchIds = [];
+          const numericPersonValues = [];
+
+          for (const p of batch) {
+            const numericId = Date.now() + Math.floor(Math.random() * 1000000);
+            numericBatchIds.push(numericId);
+            const originalDataStr = p.original_data ? JSON.stringify(p.original_data) : null;
+            const certColsStr = p.certificate_columns ? JSON.stringify(p.certificate_columns) : null;
+            numericPersonValues.push([numericId, dataset_id, p.name || null, p.age || null, p.education || null, p.major || null, p.employee_id || null, originalDataStr, p.tenure || 0, p.graduation_tenure || 0, certColsStr]);
+          }
+
+          const personInsertSQL = `INSERT INTO persons (id, dataset_id, name, age, education, major, employee_id, original_data, tenure, graduation_tenure, certificate_columns) VALUES ${numericPersonValues.map((_, i) => {
+            const offset = i * 11;
+            return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11})`;
+          }).join(', ')}`;
+
+          await pool.query(personInsertSQL, numericPersonValues.flat());
+          allPersonIds.push(...numericBatchIds);
+          console.log(`✅ 使用数字ID模式成功插入本批数据`);
+        } else {
+          throw insertError;
+        }
+      }
+
       for (let i = 0; i < batch.length; i++) {
         const person = batch[i];
         if (person.certificates && person.certificates.length > 0) {
           for (const cert of person.certificates) {
-            allCertificates.push([batchIds[i], cert.name || cert, cert.value || (typeof cert === 'string' ? '有' : null)]);
+            allCertificates.push([batchIds[i] || allPersonIds[allPersonIds.length - batch.length + i], cert.name || cert, cert.value || (typeof cert === 'string' ? '有' : null)]);
           }
         }
       }
@@ -247,7 +281,7 @@ router.post('/batch', async (req, res) => {
     }
 
     await pool.query('UPDATE datasets SET count = count + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [persons.length, dataset_id]);
-    console.log(`[Batch Import] 批量导入完成！总计: ${persons.length} 人员 + ${allCertificates.length} 证书, 总耗时: ${Date.now() - startTime}ms`);
+    console.log(`[Batch Import] 批量导入完成！总计: ${persons.length} 人员 + ${allCertificates.length} 证书, 总耗时: ${Date.now() - startTime}ms, 使用${useNumericId ? '数字' : '字符串'}ID`);
 
     res.json(persons.map((p, i) => ({ id: allPersonIds[i], dataset_id, name: p.name, age: p.age, education: p.education, major: p.major, employee_id: p.employee_id })));
   } catch (error) {

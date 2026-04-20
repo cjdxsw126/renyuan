@@ -47,7 +47,7 @@ const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  return 'https://xuanren-1.onrender.com/api';
+  return 'https://renyuan-db.onrender.com/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
