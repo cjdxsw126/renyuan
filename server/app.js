@@ -91,21 +91,38 @@ async function initDatabase() {
       )
     `);
     
-    // 修复已存在的表结构（如果是从旧版本升级） - SQLite兼容
+    // 修复已存在的表结构（如果是从旧版本升级） - 兼容 PostgreSQL 和 SQLite
     try {
-      const tableInfo = await pool.query('PRAGMA table_info(persons)');
-      const existingColumns = tableInfo.rows.map(r => r.name);
+      let existingColumns = [];
+
+      if (process.env.DATABASE_URL) {
+        // PostgreSQL: 查询 information_schema
+        const colResult = await pool.query(`
+          SELECT column_name FROM information_schema.columns
+          WHERE table_name = 'persons'
+        `);
+        existingColumns = colResult.rows.map(r => r.column_name);
+      } else {
+        // SQLite: PRAGMA table_info
+        const tableInfo = await pool.query('PRAGMA table_info(persons)');
+        existingColumns = tableInfo.rows.map(r => r.name);
+      }
+
+      console.log(`📋 人员表现有列: [${existingColumns.join(', ')}]`);
 
       if (!existingColumns.includes('tenure')) {
         await pool.query(`ALTER TABLE persons ADD COLUMN tenure REAL DEFAULT 0`);
+        console.log('✅ 已添加 tenure 列');
       }
       if (!existingColumns.includes('graduation_tenure')) {
         await pool.query(`ALTER TABLE persons ADD COLUMN graduation_tenure REAL DEFAULT 0`);
+        console.log('✅ 已添加 graduation_tenure 列');
       }
       if (!existingColumns.includes('certificate_columns')) {
         await pool.query(`ALTER TABLE persons ADD COLUMN certificate_columns TEXT DEFAULT '{}'`);
+        console.log('✅ 已添加 certificate_columns 列');
       }
-      console.log('✅ 人员表新增字段 (tenure, graduation_tenure, certificate_columns) 已就绪');
+      console.log('✅ 人员表新增字段已就绪');
     } catch (e) {
       console.error('⚠️ 添加字段时出错:', e.message);
     }
