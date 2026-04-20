@@ -96,12 +96,24 @@ async function initDatabase() {
       let existingColumns = [];
 
       if (process.env.DATABASE_URL) {
-        // PostgreSQL: 查询 information_schema
+        // PostgreSQL: 查询 information_schema（包含数据类型）
         const colResult = await pool.query(`
-          SELECT column_name FROM information_schema.columns
+          SELECT column_name, data_type FROM information_schema.columns
           WHERE table_name = 'persons'
         `);
         existingColumns = colResult.rows.map(r => r.column_name);
+
+        // 检查并修复 id 列类型（INTEGER → TEXT）
+        const idCol = colResult.rows.find(r => r.column_name === 'id');
+        if (idCol && (idCol.data_type === 'integer' || idCol.data_type === 'bigint' || idCol.data_type === 'serial')) {
+          console.log(`⚠️  发现 id 列类型为 ${idCol.data_type}，正在修改为 TEXT...`);
+          try {
+            await pool.query(`ALTER TABLE persons ALTER COLUMN id TYPE TEXT USING id::TEXT`);
+            console.log('✅ persons.id 列已修改为 TEXT');
+          } catch (alterErr) {
+            console.error('❌ 修改 id 列失败:', alterErr.message);
+          }
+        }
       } else {
         // SQLite: PRAGMA table_info
         const tableInfo = await pool.query('PRAGMA table_info(persons)');
@@ -136,6 +148,30 @@ async function initDatabase() {
         value TEXT
       )
     `);
+
+    // 修复证书表列类型（PostgreSQL 兼容）
+    if (process.env.DATABASE_URL) {
+      try {
+        const certColResult = await pool.query(`
+          SELECT column_name, data_type FROM information_schema.columns
+          WHERE table_name = 'certificates'
+        `);
+        for (const col of certColResult.rows) {
+          if ((col.column_name === 'id' || col.column_name === 'person_id') &&
+              (col.data_type === 'integer' || col.data_type === 'bigint')) {
+            console.log(`⚠️  证书表 ${col.column_name} 列类型为 ${col.data_type}，正在修改为 TEXT...`);
+            try {
+              await pool.query(`ALTER TABLE certificates ALTER COLUMN ${col.column_name} TYPE TEXT USING ${col.column_name}::TEXT`);
+              console.log(`✅ certificates.${col.column_name} 列已修改为 TEXT`);
+            } catch (alterErr) {
+              console.error(`❌ 修改证书表 ${col.column_name} 列失败:`, alterErr.message);
+            }
+          }
+        }
+      } catch (certErr) {
+        console.error('⚠️ 检查证书表结构出错:', certErr.message);
+      }
+    }
     
     // 修复已存在的证书表 - SQLite兼容
     try {
