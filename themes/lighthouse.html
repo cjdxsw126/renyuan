@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>灵笼主题 - 灯塔控制室 | Lighthouse Control</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a1628;
+            --bg-secondary: #0d1f35;
+            --bg-card: rgba(13, 31, 53, 0.8);
+            --accent-cyan: #00d4ff;
+            --accent-orange: #ff6b35;
+            --accent-red: #ff2d55;
+            --text-primary: #e0f7ff;
+            --text-secondary: #8ba3b8;
+            --grid-line: rgba(0, 212, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Orbitron', 'Microsoft YaHei', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* 网格背景 */
+        .grid-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* 扫描线效果 */
+        .scanline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+            animation: scan 4s linear infinite;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        @keyframes scan {
+            0% { transform: translateY(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(100vh); opacity: 0; }
+        }
+
+        /* 主容器 */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* 头部 */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            width: 50px;
+            height: 50px;
+            border: 2px solid var(--accent-cyan);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .logo-icon::before {
+            content: '灯塔';
+            font-size: 12px;
+            color: var(--accent-cyan);
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 10px var(--accent-cyan); }
+            50% { box-shadow: 0 0 30px var(--accent-cyan), 0 0 60px var(--accent-cyan); }
+        }
+
+        .logo h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, var(--text-primary), var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 30px;
+            font-size: 12px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            animation: blink 1s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* 主搜索区域 */
+        .search-section {
+            background: var(--bg-card);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .search-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+        }
+
+        .search-title {
+            font-size: 14px;
+            color: var(--accent-cyan);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .search-title::before {
+            content: '>';
+            color: var(--accent-orange);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 4px;
+            padding: 15px 20px;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-cyan), #0088cc);
+            border: none;
+            border-radius: 4px;
+            padding: 15px 40px;
+            color: var(--bg-primary);
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 30px rgba(0, 212, 255, 0.4);
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-primary:hover::before {
+            left: 100%;
+        }
+
+        /* AI诊断面板 */
+        .diagnostic-panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-left: 3px solid var(--accent-orange);
+            padding: 15px 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.8;
+        }
+
+        .diagnostic-panel .label {
+            color: var(--accent-orange);
+        }
+
+        .diagnostic-panel .value {
+            color: var(--accent-cyan);
+        }
+
+        /* 筛选面板 */
+        .filter-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .filter-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+
+        .filter-card:hover {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.1);
+        }
+
+        .filter-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        .filter-value {
+            font-size: 14px;
+            color: var(--text-primary);
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .filter-value:hover {
+            border-color: var(--accent-cyan);
+        }
+
+        /* 数据表格 */
+        .data-section {
+            background: var(--bg-card);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .data-header {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
+            padding: 15px 20px;
+            background: rgba(0, 212, 255, 0.1);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent-cyan);
+        }
+
+        .data-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+            font-size: 13px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .data-row:hover {
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .data-row:last-child {
+            border-bottom: none;
+        }
+
+        .match-score {
+            color: var(--accent-orange);
+            font-weight: 700;
+        }
+
+        /* 角落装饰 */
+        .corner-decoration {
+            position: fixed;
+            width: 100px;
+            height: 100px;
+            border: 2px solid var(--accent-cyan);
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .corner-decoration.top-left {
+            top: 20px;
+            left: 20px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .corner-decoration.top-right {
+            top: 20px;
+            right: 20px;
+            border-left: none;
+            border-bottom: none;
+        }
+
+        .corner-decoration.bottom-left {
+            bottom: 20px;
+            left: 20px;
+            border-right: none;
+            border-top: none;
+        }
+
+        .corner-decoration.bottom-right {
+            bottom: 20px;
+            right: 20px;
+            border-left: none;
+            border-top: none;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .search-box {
+                flex-direction: column;
+            }
+            
+            .data-header,
+            .data-row {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-overlay"></div>
+    <div class="scanline"></div>
+    
+    <div class="corner-decoration top-left"></div>
+    <div class="corner-decoration top-right"></div>
+    <div class="corner-decoration bottom-left"></div>
+    <div class="corner-decoration bottom-right"></div>
+
+    <div class="container">
+        <!-- 头部 -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon"></div>
+                <h1>人员筛选系统 // PERSONNEL FILTER</h1>
+            </div>
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="status-dot"></span>
+                    <span>SYSTEM ONLINE</span>
+                </div>
+                <div class="status-item">
+                    <span style="color: var(--accent-cyan);">LIGHTHOUSE_V7.2</span>
+                </div>
+                <div class="status-item">
+                    <span style="color: var(--accent-orange);">SECURE CONNECTION</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- AI搜索区域 -->
+        <section class="search-section">
+            <div class="search-title">AI智能筛选 // SMART SEARCH PROTOCOL</div>
+            <div class="search-box">
+                <input type="text" class="search-input" placeholder="输入筛选指令... 例如：同时具备PMP和高级工程师证书，毕业5年以上">
+                <button class="btn-primary">执行筛选</button>
+            </div>
+            <div class="diagnostic-panel">
+                <div><span class="label">STATUS:</span> <span class="value">WAITING_FOR_INPUT</span></div>
+                <div><span class="label">MODE:</span> <span class="value">DYNAMIC_THRESHOLD_SEARCH</span></div>
+                <div><span class="label">PROVIDER:</span> <span class="value">DEEPSEEK_V3</span></div>
+            </div>
+        </section>
+
+        <!-- 筛选面板 -->
+        <section class="filter-section">
+            <div class="filter-card">
+                <div class="filter-label">姓名 // NAME</div>
+                <div class="filter-value">全部人员 ▼</div>
+            </div>
+            <div class="filter-card">
+                <div class="filter-label">年龄范围 // AGE</div>
+                <div class="filter-value">25 - 45 岁 ▼</div>
+            </div>
+            <div class="filter-card">
+                <div class="filter-label">学历 // EDUCATION</div>
+                <div class="filter-value">本科及以上 ▼</div>
+            </div>
+            <div class="filter-card">
+                <div class="filter-label">入司年限 // TENURE</div>
+                <div class="filter-value">3 年以上 ▼</div>
+            </div>
+            <div class="filter-card">
+                <div class="filter-label">毕业年限 // GRADUATION</div>
+                <div class="filter-value">5 年以上 ▼</div>
+            </div>
+            <div class="filter-card">
+                <div class="filter-label">证书要求 // CERTIFICATES</div>
+                <div class="filter-value">选择证书... ▼</div>
+            </div>
+        </section>
+
+        <!-- 数据表格 -->
+        <section class="data-section">
+            <div class="data-header">
+                <div>姓名 // NAME</div>
+                <div>年龄 // AGE</div>
+                <div>学历 // EDU</div>
+                <div>入司年限 // TENURE</div>
+                <div>毕业年限 // GRAD</div>
+                <div>匹配度 // MATCH</div>
+            </div>
+            <div class="data-row">
+                <div style="color: var(--accent-cyan);">张三</div>
+                <div>32</div>
+                <div>本科</div>
+                <div>5年</div>
+                <div>8年</div>
+                <div class="match-score">95%</div>
+            </div>
+            <div class="data-row">
+                <div style="color: var(--accent-cyan);">李四</div>
+                <div>28</div>
+                <div>硕士</div>
+                <div>3年</div>
+                <div>6年</div>
+                <div class="match-score">87%</div>
+            </div>
+            <div class="data-row">
+                <div style="color: var(--accent-cyan);">王五</div>
+                <div>35</div>
+                <div>本科</div>
+                <div>8年</div>
+                <div>12年</div>
+                <div class="match-score">92%</div>
+            </div>
+            <div class="data-row">
+                <div style="color: var(--accent-cyan);">赵六</div>
+                <div>29</div>
+                <div>博士</div>
+                <div>2年</div>
+                <div>7年</div>
+                <div class="match-score">78%</div>
+            </div>
+        </section>
+    </div>
+</body>
+</html>

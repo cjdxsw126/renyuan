@@ -1,0 +1,338 @@
+/* 灵笼主题特效样式 */
+
+/* ==================== 基础主题变量 ==================== */
+:root {
+  --theme-primary: #00d4ff;
+  --theme-secondary: #0d1f35;
+  --theme-accent: #ff6b35;
+  --theme-background: #0a1628;
+  --theme-surface: rgba(13, 31, 53, 0.8);
+  --theme-text: #e0f7ff;
+  --theme-text-secondary: #8ba3b8;
+  --theme-border: rgba(0, 212, 255, 0.3);
+  --theme-success: #27ae60;
+  --theme-warning: #f39c12;
+  --theme-danger: #ff2d55;
+  --theme-font-heading: 'Orbitron', 'Microsoft YaHei', sans-serif;
+  --theme-font-body: 'Orbitron', 'Microsoft YaHei', sans-serif;
+}
+
+/* ==================== 通用主题样式 ==================== */
+body {
+  background: var(--theme-background);
+  color: var(--theme-text);
+  font-family: var(--theme-font-body);
+  transition: background 0.5s ease, color 0.3s ease;
+}
+
+/* 主题容器 */
+.theme-container {
+  min-height: 100vh;
+  background: var(--theme-background);
+  position: relative;
+}
+
+/* ==================== 灯塔主题特效 ==================== */
+.theme-lighthouse {
+  /* 网格背景 */
+  --grid-color: rgba(0, 212, 255, 0.05);
+}
+
+.theme-lighthouse .theme-container::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 扫描线效果 */
+.theme-lighthouse .scanline {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--theme-primary), transparent);
+  animation: scan 4s linear infinite;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+@keyframes scan {
+  0% { transform: translateY(0); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+
+/* 发光效果 */
+.theme-lighthouse .glow {
+  box-shadow: 0 0 20px var(--theme-primary);
+}
+
+.theme-lighthouse .glow-text {
+  text-shadow: 0 0 10px var(--theme-primary);
+}
+
+/* ==================== 噬极兽主题特效 ==================== */
+.theme-chimera {
+  --vein-color: rgba(57, 255, 20, 0.08);
+}
+
+.theme-chimera .theme-container::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: 
+    radial-gradient(ellipse at 20% 30%, rgba(157, 78, 221, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 70%, rgba(57, 255, 20, 0.08) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 呼吸动画 */
+.theme-chimera .breathing {
+  animation: breathe 2s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { 
+    transform: scale(1); 
+    box-shadow: 0 0 20px var(--theme-primary);
+  }
+  50% { 
+    transform: scale(1.02); 
+    box-shadow: 0 0 40px var(--theme-primary);
+  }
+}
+
+/* 形态变形 */
+.theme-chimera .morphing {
+  animation: morph 3s ease-in-out infinite;
+}
+
+@keyframes morph {
+  0%, 100% { border-radius: 50% 40% 60% 30%; }
+  25% { border-radius: 40% 60% 30% 50%; }
+  50% { border-radius: 60% 30% 50% 40%; }
+  75% { border-radius: 30% 50% 40% 60%; }
+}
+
+/* 危险闪烁 */
+.theme-chimera .danger-blink {
+  animation: danger-pulse 1s ease-in-out infinite;
+}
+
+@keyframes danger-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 20px var(--theme-danger); }
+  50% { opacity: 0.7; box-shadow: 0 0 40px var(--theme-danger); }
+}
+
+/* ==================== 玛娜之花主题特效 ==================== */
+.theme-mana {
+  --light-ray: rgba(255, 215, 0, 0.1);
+}
+
+.theme-mana .theme-container::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: 
+    radial-gradient(ellipse at 50% 0%, rgba(255, 215, 0, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 30% 70%, rgba(255, 170, 0, 0.08) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 粒子效果容器 */
+.theme-mana .particles-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* 粒子 */
+.theme-mana .particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: var(--theme-primary);
+  border-radius: 50%;
+  opacity: 0.6;
+  animation: float 8s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { 
+    transform: translateY(0) translateX(0); 
+    opacity: 0.6;
+  }
+  25% { 
+    transform: translateY(-20px) translateX(10px); 
+    opacity: 0.8;
+  }
+  50% { 
+    transform: translateY(-40px) translateX(-10px); 
+    opacity: 1;
+  }
+  75% { 
+    transform: translateY(-20px) translateX(5px); 
+    opacity: 0.8;
+  }
+}
+
+/* 神圣光芒 */
+.theme-mana .divine-glow {
+  animation: divine-glow 3s ease-in-out infinite;
+}
+
+@keyframes divine-glow {
+  0%, 100% { 
+    text-shadow: 0 0 30px var(--theme-primary);
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
+  }
+  50% { 
+    text-shadow: 0 0 60px var(--theme-primary), 0 0 100px rgba(255, 215, 0, 0.4);
+    box-shadow: 0 0 60px rgba(255, 215, 0, 0.5);
+  }
+}
+
+/* ==================== 通用组件样式 ==================== */
+
+/* 卡片 */
+.theme-card {
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  padding: 20px;
+  transition: all 0.3s;
+}
+
+.theme-card:hover {
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.1);
+}
+
+/* 按钮 */
+.theme-button {
+  background: linear-gradient(135deg, var(--theme-primary), var(--theme-accent));
+  border: none;
+  border-radius: 4px;
+  padding: 12px 24px;
+  color: var(--theme-background);
+  font-family: var(--theme-font-body);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.theme-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4);
+}
+
+/* 输入框 */
+.theme-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+  padding: 12px 16px;
+  color: var(--theme-text);
+  font-family: var(--theme-font-body);
+  outline: none;
+  transition: all 0.3s;
+}
+
+.theme-input:focus {
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+}
+
+.theme-input::placeholder {
+  color: var(--theme-text-secondary);
+}
+
+/* 表格 */
+.theme-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.theme-table th {
+  background: rgba(0, 212, 255, 0.1);
+  border-bottom: 1px solid var(--theme-border);
+  padding: 15px;
+  text-align: left;
+  color: var(--theme-primary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.theme-table td {
+  border-bottom: 1px solid var(--theme-border);
+  padding: 15px;
+  transition: all 0.3s;
+}
+
+.theme-table tr:hover td {
+  background: rgba(0, 212, 255, 0.05);
+}
+
+/* 标题 */
+.theme-heading {
+  font-family: var(--theme-font-heading);
+  color: var(--theme-text);
+  letter-spacing: 3px;
+}
+
+/* 文本 */
+.theme-text {
+  color: var(--theme-text);
+}
+
+.theme-text-secondary {
+  color: var(--theme-text-secondary);
+}
+
+/* 边框 */
+.theme-border {
+  border: 1px solid var(--theme-border);
+}
+
+/* 成功/警告/危险 */
+.theme-success { color: var(--theme-success); }
+.theme-warning { color: var(--theme-warning); }
+.theme-danger { color: var(--theme-danger); }
+
+/* ==================== 响应式 ==================== */
+@media (max-width: 768px) {
+  .theme-card {
+    padding: 15px;
+  }
+  
+  .theme-button {
+    padding: 10px 20px;
+    font-size: 12px;
+  }
+}

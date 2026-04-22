@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { storageService, User, Person, DataSet } from './storageService';
+import { useTheme } from './contexts/ThemeContext';
+import { ThemeSwitcher } from './components/ThemeSwitcher';
 
 interface FilterState {
   name: string;
@@ -331,6 +333,7 @@ const enrichPersonData = (person: Person, searchCertString?: string): EnrichedPe
 
 
 const App: React.FC = () => {
+  const { currentTheme } = useTheme();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -2811,43 +2814,246 @@ const App: React.FC = () => {
 
   if (!isLoggedIn) {
     return (
-      <div className="container">
-        <form className="login-form" onSubmit={handleLogin}>
-          <h2>登录</h2>
-          {error && <p className="error-message">{error}</p>}
-          <div className="form-group">
-            <label htmlFor="username">用户名</label>
-            <input
-              type="text"
-              id="username"
-              name="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-            />
+      <div className="theme-container" style={{ 
+        minHeight: '100vh', 
+        background: currentTheme.colors.background,
+        fontFamily: currentTheme.fonts.body,
+        position: 'relative'
+      }}>
+        {/* 主题特效层 */}
+        {currentTheme.effects.scanline && <div className="scanline" />}
+        {currentTheme.effects.particles && <div className="particles-container" id="particles" />}
+        
+        {/* 主题切换按钮 */}
+        <div style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 100 }}>
+          <ThemeSwitcher />
+        </div>
+
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          padding: '20px',
+          position: 'relative',
+          zIndex: 10
+        }}>
+          {/* Logo 区域 */}
+          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+            <div style={{
+              width: '80px',
+              height: '80px',
+              margin: '0 auto 20px',
+              border: `3px solid ${currentTheme.colors.primary}`,
+              borderRadius: currentTheme.id === 'chimera' ? '50% 40% 60% 30%' : '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '28px',
+              color: currentTheme.colors.primary,
+              animation: currentTheme.effects.breathing ? 'breathe 2s ease-in-out infinite' : 
+                        currentTheme.effects.morphing ? 'morph 3s ease-in-out infinite' : 'none',
+              boxShadow: `0 0 30px ${currentTheme.colors.primary}50`
+            }}>
+              {currentTheme.id === 'lighthouse' ? '◉' : 
+               currentTheme.id === 'chimera' ? '◈' : '✦'}
+            </div>
+            <h1 style={{
+              fontSize: '32px',
+              color: currentTheme.colors.primary,
+              fontFamily: currentTheme.fonts.heading,
+              letterSpacing: '4px',
+              marginBottom: '10px',
+              textShadow: `0 0 20px ${currentTheme.colors.primary}50`
+            }}>
+              {currentTheme.name}
+            </h1>
+            <p style={{
+              color: currentTheme.colors.textSecondary,
+              fontSize: '14px',
+              letterSpacing: '2px'
+            }}>
+              {currentTheme.description}
+            </p>
           </div>
-          <div className="form-group">
-            <label htmlFor="password">密码</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <div style={{ display: 'flex', gap: '12px', marginTop: '20px', width: '100%' }}>
-            <button type="submit" style={{ flex: 1, backgroundColor: '#ff6b81', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '12px', fontSize: '16px', cursor: 'pointer', transition: 'all 0.3s ease', boxShadow: '0 4px 6px rgba(255, 107, 129, 0.3)' }}>登录</button>
-            <button
-              type="button"
-              onClick={() => setShowContactModal(true)}
-              style={{ flex: 1, backgroundColor: '#ff6b81', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '12px', fontSize: '16px', cursor: 'pointer', transition: 'all 0.3s ease', boxShadow: '0 4px 6px rgba(255, 107, 129, 0.3)' }}
-            >
-              联系管理员
-            </button>
-          </div>
-        </form>
+
+          {/* 登录表单 */}
+          <form 
+            onSubmit={handleLogin}
+            style={{
+              width: '100%',
+              maxWidth: '400px',
+              background: currentTheme.colors.surface,
+              border: `1px solid ${currentTheme.colors.border}`,
+              borderRadius: '12px',
+              padding: '40px',
+              boxShadow: `0 10px 40px rgba(0,0,0,0.3)`
+            }}
+          >
+            <h2 style={{
+              textAlign: 'center',
+              marginBottom: '30px',
+              color: currentTheme.colors.text,
+              fontFamily: currentTheme.fonts.heading,
+              letterSpacing: '3px'
+            }}>
+              系统登录 // LOGIN
+            </h2>
+            
+            {error && (
+              <div style={{
+                background: `${currentTheme.colors.danger}20`,
+                border: `1px solid ${currentTheme.colors.danger}`,
+                borderRadius: '8px',
+                padding: '12px 16px',
+                marginBottom: '20px',
+                color: currentTheme.colors.danger,
+                fontSize: '14px'
+              }}>
+                {error}
+              </div>
+            )}
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                color: currentTheme.colors.textSecondary,
+                fontSize: '12px',
+                textTransform: 'uppercase',
+                letterSpacing: '2px'
+              }}>
+                用户名 // Username
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: '14px 18px',
+                  background: 'rgba(0,0,0,0.3)',
+                  border: `1px solid ${currentTheme.colors.border}`,
+                  borderRadius: '8px',
+                  color: currentTheme.colors.text,
+                  fontSize: '15px',
+                  fontFamily: currentTheme.fonts.body,
+                  outline: 'none',
+                  transition: 'all 0.3s'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = currentTheme.colors.primary;
+                  e.target.style.boxShadow = `0 0 20px ${currentTheme.colors.primary}30`;
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = currentTheme.colors.border;
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '30px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                color: currentTheme.colors.textSecondary,
+                fontSize: '12px',
+                textTransform: 'uppercase',
+                letterSpacing: '2px'
+              }}>
+                密码 // Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: '14px 18px',
+                  background: 'rgba(0,0,0,0.3)',
+                  border: `1px solid ${currentTheme.colors.border}`,
+                  borderRadius: '8px',
+                  color: currentTheme.colors.text,
+                  fontSize: '15px',
+                  fontFamily: currentTheme.fonts.body,
+                  outline: 'none',
+                  transition: 'all 0.3s'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = currentTheme.colors.primary;
+                  e.target.style.boxShadow = `0 0 20px ${currentTheme.colors.primary}30`;
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = currentTheme.colors.border;
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                type="submit"
+                style={{
+                  flex: 1,
+                  padding: '14px 24px',
+                  background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.accent})`,
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: currentTheme.colors.background,
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  fontFamily: currentTheme.fonts.body,
+                  cursor: 'pointer',
+                  textTransform: 'uppercase',
+                  letterSpacing: '2px',
+                  transition: 'all 0.3s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = `0 5px 20px ${currentTheme.colors.primary}50`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                登录
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowContactModal(true)}
+                style={{
+                  flex: 1,
+                  padding: '14px 24px',
+                  background: 'transparent',
+                  border: `1px solid ${currentTheme.colors.primary}`,
+                  borderRadius: '8px',
+                  color: currentTheme.colors.primary,
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  fontFamily: currentTheme.fonts.body,
+                  cursor: 'pointer',
+                  textTransform: 'uppercase',
+                  letterSpacing: '2px',
+                  transition: 'all 0.3s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = currentTheme.colors.primary;
+                  e.currentTarget.style.color = currentTheme.colors.background;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = currentTheme.colors.primary;
+                }}
+              >
+                联系管理员
+              </button>
+            </div>
+          </form>
+        </div>
 
         {/* 联系管理员弹窗 */}
         {showContactModal && (
@@ -2971,7 +3177,23 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="container">
+    <div className="theme-container" style={{ 
+      minHeight: '100vh', 
+      background: currentTheme.colors.background,
+      fontFamily: currentTheme.fonts.body,
+      color: currentTheme.colors.text,
+      position: 'relative'
+    }}>
+      {/* 主题特效层 */}
+      {currentTheme.effects.scanline && <div className="scanline" />}
+      {currentTheme.effects.particles && <div className="particles-container" id="particles" />}
+      
+      <div className="container" style={{ position: 'relative', zIndex: 10 }}>
+        {/* 主题切换按钮 */}
+        <div style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 100 }}>
+          <ThemeSwitcher />
+        </div>
+
       {/* 自定义弹框 */}
       {showAlert && (
         <div style={{
@@ -2980,21 +3202,21 @@ const App: React.FC = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 10000
         }}>
           <div style={{
-            backgroundColor: '#ffffff',
+            background: currentTheme.colors.surface,
+            border: `1px solid ${currentTheme.colors.border}`,
             borderRadius: '8px',
             padding: '20px',
             maxWidth: '80%',
             maxHeight: '80%',
             overflow: 'auto',
-            boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-            border: `2px solid ${alertType === 'success' ? '#4CAF50' : alertType === 'error' ? '#ff6b81' : '#ffb3ba'}`
+            boxShadow: `0 4px 20px rgba(0,0,0,0.5)`,
           }}>
             <div style={{
               display: 'flex',
@@ -5828,6 +6050,7 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

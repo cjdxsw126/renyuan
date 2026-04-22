@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>灵笼主题预览 - Ling Long Themes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .header h1 {
+            font-size: 48px;
+            margin-bottom: 15px;
+            background: linear-gradient(90deg, #00d4ff, #39ff14, #ffd700);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 10px;
+        }
+
+        .header p {
+            color: #888;
+            font-size: 18px;
+            letter-spacing: 3px;
+        }
+
+        .themes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+        }
+
+        .theme-card {
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            height: 400px;
+        }
+
+        .theme-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        .theme-preview {
+            width: 100%;
+            height: 100%;
+            border: none;
+            pointer-events: none;
+        }
+
+        .theme-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 30px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.9));
+        }
+
+        .theme-number {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 10px;
+            letter-spacing: 3px;
+        }
+
+        .theme-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .theme-subtitle {
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 15px;
+        }
+
+        .theme-tags {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* 版本1 - 灯塔 */
+        .theme-card.lighthouse {
+            border: 2px solid #00d4ff;
+        }
+        .theme-card.lighthouse .theme-title {
+            color: #00d4ff;
+        }
+        .theme-card.lighthouse .tag {
+            border: 1px solid #00d4ff;
+            color: #00d4ff;
+        }
+
+        /* 版本2 - 噬极兽 */
+        .theme-card.chimera {
+            border: 2px solid #39ff14;
+        }
+        .theme-card.chimera .theme-title {
+            color: #39ff14;
+        }
+        .theme-card.chimera .tag {
+            border: 1px solid #39ff14;
+            color: #39ff14;
+        }
+
+        /* 版本3 - 玛娜之花 */
+        .theme-card.mana {
+            border: 2px solid #ffd700;
+        }
+        .theme-card.mana .theme-title {
+            color: #ffd700;
+        }
+        .theme-card.mana .tag {
+            border: 1px solid #ffd700;
+            color: #ffd700;
+        }
+
+        .view-btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 30px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid currentColor;
+            color: inherit;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+        }
+
+        .view-btn:hover {
+            background: currentColor;
+            color: #000;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 40px;
+            border-top: 1px solid #333;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>灵笼主题预览</h1>
+            <p>选择您喜欢的主题风格进行预览</p>
+        </header>
+
+        <div class="themes-grid">
+            <!-- 版本1: 灯塔控制室 -->
+            <div class="theme-card lighthouse">
+                <iframe class="theme-preview" src="lighthouse.html"></iframe>
+                <div class="theme-overlay">
+                    <div class="theme-number">VERSION 01</div>
+                    <h2 class="theme-title">灯塔控制室</h2>
+                    <div class="theme-subtitle">Lighthouse Control Room</div>
+                    <div class="theme-tags">
+                        <span class="tag">科技感</span>
+                        <span class="tag">未来主义</span>
+                        <span class="tag">HUD界面</span>
+                    </div>
+                    <a href="lighthouse.html" target="_blank" class="view-btn" style="color: #00d4ff;">全屏预览</a>
+                </div>
+            </div>
+
+            <!-- 版本2: 噬极兽生态 -->
+            <div class="theme-card chimera">
+                <iframe class="theme-preview" src="chimera.html"></iframe>
+                <div class="theme-overlay">
+                    <div class="theme-number">VERSION 02</div>
+                    <h2 class="theme-title">噬极兽生态</h2>
+                    <div class="theme-subtitle">Chimera Ecology</div>
+                    <div class="theme-tags">
+                        <span class="tag">生物机械</span>
+                        <span class="tag">有机生命</span>
+                        <span class="tag">危险警示</span>
+                    </div>
+                    <a href="chimera.html" target="_blank" class="view-btn" style="color: #39ff14;">全屏预览</a>
+                </div>
+            </div>
+
+            <!-- 版本3: 玛娜之花 -->
+            <div class="theme-card mana">
+                <iframe class="theme-preview" src="mana.html"></iframe>
+                <div class="theme-overlay">
+                    <div class="theme-number">VERSION 03</div>
+                    <h2 class="theme-title">玛娜之花</h2>
+                    <div class="theme-subtitle">Mana Flower</div>
+                    <div class="theme-tags">
+                        <span class="tag">神圣宗教</span>
+                        <span class="tag">古典优雅</span>
+                        <span class="tag">金色光芒</span>
+                    </div>
+                    <a href="mana.html" target="_blank" class="view-btn" style="color: #ffd700;">全屏预览</a>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p>基于《灵笼》动画世界观设计 | 人员筛选系统主题预览</p>
+        </footer>
+    </div>
+</body>
+</html>
