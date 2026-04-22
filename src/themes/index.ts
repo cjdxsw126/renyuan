@@ -3,6 +3,8 @@ export type ThemeType = 'lighthouse' | 'chimera' | 'mana';
 export interface ThemeLabels {
   aiSearchTitle: string;
   aiSearchSubtitle: string;
+  aiSearchButton: string;
+  aiSearching: string;
   name: string;
   age: string;
   education: string;
@@ -12,6 +14,7 @@ export interface ThemeLabels {
   search: string;
   download: string;
   matchScore: string;
+  logout: string;
 }
 
 export interface Theme {
@@ -79,6 +82,8 @@ export const themes: Record<ThemeType, Theme> = {
     labels: {
       aiSearchTitle: 'AI智能筛选',
       aiSearchSubtitle: 'SMART SEARCH PROTOCOL',
+      aiSearchButton: '执行筛选',
+      aiSearching: '系统检索中...',
       name: '姓名 // NAME',
       age: '年龄范围 // AGE',
       education: '学历 // EDUCATION',
@@ -88,6 +93,7 @@ export const themes: Record<ThemeType, Theme> = {
       search: '查询 // SEARCH',
       download: '下载 // DOWNLOAD',
       matchScore: '匹配度 // MATCH',
+      logout: '登出 // LOGOUT',
     },
   },
   chimera: {
@@ -122,6 +128,8 @@ export const themes: Record<ThemeType, Theme> = {
     labels: {
       aiSearchTitle: '生命探测',
       aiSearchSubtitle: 'LIFE FORM DETECTION',
+      aiSearchButton: '启动探测',
+      aiSearching: '生命扫描中...',
       name: '生命体标识 // IDENTITY',
       age: '年龄周期 // AGE CYCLE',
       education: '知识等级 // KNOWLEDGE',
@@ -131,6 +139,7 @@ export const themes: Record<ThemeType, Theme> = {
       search: '探测 // DETECT',
       download: '提取 // EXTRACT',
       matchScore: '适配度 // FIT',
+      logout: '断开 // DISCONNECT',
     },
   },
   mana: {
@@ -165,15 +174,18 @@ export const themes: Record<ThemeType, Theme> = {
     labels: {
       aiSearchTitle: '神启筛选',
       aiSearchSubtitle: 'DIVINE SEARCH',
+      aiSearchButton: '启示录',
+      aiSearching: '神谕降临中...',
       name: '灵魂之名 // NAME',
       age: '岁月轮回 // AGE',
       education: '智慧等级 // WISDOM',
       tenure: '奉献时长 // DEDICATION',
       graduationTenure: '觉醒年限 // AWAKENING',
       certificates: '圣印认证 // SEAL',
-      search: '启示录 // REVELATION',
+      search: '预言 // PROPHECY',
       download: '圣典 // SCRIPTURE',
       matchScore: '契合度 // BOND',
+      logout: '归隐 // RETREAT',
     },
   },
 };

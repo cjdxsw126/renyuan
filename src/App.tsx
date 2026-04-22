@@ -3645,6 +3645,7 @@ const App: React.FC = () => {
               cursor: 'pointer',
               transition: 'all 0.3s',
               fontFamily: currentTheme.fonts.body,
+              letterSpacing: '1px'
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'translateY(-2px)';
@@ -3655,7 +3656,7 @@ const App: React.FC = () => {
               e.currentTarget.style.boxShadow = 'none';
             }}
           >
-            登出
+            {currentTheme.labels.logout}
           </button>
           {/* 主题切换按钮 */}
           <ThemeSwitcher />
@@ -3872,19 +3873,35 @@ const App: React.FC = () => {
                 onClick={handleSmartSearch}
                 disabled={isSmartSearching}
                 style={{
-                  padding: '10px 20px',
-                  backgroundColor: isSmartSearching ? '#ccc' : '#ff6b81',
-                  color: '#fff',
+                  padding: '12px 24px',
+                  background: isSmartSearching 
+                    ? 'rgba(128,128,128,0.5)' 
+                    : `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.accent})`,
+                  color: currentTheme.colors.background,
                   border: 'none',
-                  borderRadius: '8px',
+                  borderRadius: '6px',
                   cursor: isSmartSearching ? 'not-allowed' : 'pointer',
                   fontSize: '14px',
                   fontWeight: 'bold',
                   whiteSpace: 'nowrap',
-                  alignSelf: 'center'
+                  alignSelf: 'center',
+                  fontFamily: currentTheme.fonts.body,
+                  letterSpacing: '2px',
+                  transition: 'all 0.3s',
+                  boxShadow: isSmartSearching ? 'none' : `0 4px 15px ${currentTheme.colors.primary}40`
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSmartSearching) {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = `0 6px 20px ${currentTheme.colors.primary}60`;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = isSmartSearching ? 'none' : `0 4px 15px ${currentTheme.colors.primary}40`;
                 }}
               >
-                {isSmartSearching ? '⏳ 搜索中...' : '🔍 AI 筛选'}
+                {isSmartSearching ? `⏳ ${currentTheme.labels.aiSearching}` : `🔍 ${currentTheme.labels.aiSearchButton}`}
               </button>
             </div>
 
@@ -5136,18 +5153,65 @@ const App: React.FC = () => {
                   // 执行搜索
                   handleSearch();
                 }} 
-                style={{ width: '100%' }}
+                style={{
+                  width: '100%',
+                  padding: '12px 20px',
+                  background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.accent})`,
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: currentTheme.colors.background,
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  fontFamily: currentTheme.fonts.body,
+                  letterSpacing: '2px',
+                  transition: 'all 0.3s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = `0 4px 15px ${currentTheme.colors.primary}50`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               >
-                查询
+                {currentTheme.labels.search}
               </button>
               {modules.download && (userRole === 'admin' || userRole === 'member') && (
                 <button 
                   type="button" 
                   onClick={() => handleDownload(filteredPeople)} 
                   disabled={filteredPeople.length === 0}
-                  style={{ width: '100%', backgroundColor: '#4CAF50' }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 20px',
+                    background: filteredPeople.length === 0 
+                      ? 'rgba(128,128,128,0.3)' 
+                      : currentTheme.colors.success,
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    cursor: filteredPeople.length === 0 ? 'not-allowed' : 'pointer',
+                    fontFamily: currentTheme.fonts.body,
+                    letterSpacing: '2px',
+                    transition: 'all 0.3s',
+                    opacity: filteredPeople.length === 0 ? 0.6 : 1
+                  }}
+                  onMouseEnter={(e) => {
+                    if (filteredPeople.length > 0) {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = `0 4px 15px ${currentTheme.colors.success}50`;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                 >
-                  下载
+                  {currentTheme.labels.download}
                 </button>
               )}
             </div>
