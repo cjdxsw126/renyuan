@@ -8,6 +8,7 @@ export interface ThemeLabels {
   name: string;
   age: string;
   education: string;
+  major: string;
   tenure: string;
   graduationTenure: string;
   certificates: string;
@@ -87,6 +88,7 @@ export const themes: Record<ThemeType, Theme> = {
       name: '姓名',
       age: '年龄范围',
       education: '学历',
+      major: '专业',
       tenure: '入司年限（年）',
       graduationTenure: '毕业年限（年）',
       certificates: '证书',
@@ -133,6 +135,7 @@ export const themes: Record<ThemeType, Theme> = {
       name: '姓名 // NAME',
       age: '年龄范围 // AGE',
       education: '学历 // EDUCATION',
+      major: '专业 // MAJOR',
       tenure: '入司年限 // TENURE',
       graduationTenure: '毕业年限 // GRADUATION',
       certificates: '证书要求 // CERTIFICATES',
@@ -179,6 +182,7 @@ export const themes: Record<ThemeType, Theme> = {
       name: '生命体标识 // IDENTITY',
       age: '年龄周期 // AGE CYCLE',
       education: '知识等级 // KNOWLEDGE',
+      major: '专业 // SPECIALTY',
       tenure: '服务时长 // SERVICE',
       graduationTenure: '进化 // EVOLUTION',
       certificates: '能力认证 // ABILITY',
@@ -225,6 +229,7 @@ export const themes: Record<ThemeType, Theme> = {
       name: '灵魂之名 // NAME',
       age: '岁月轮回 // AGE',
       education: '智慧等级 // WISDOM',
+      major: '灵魂特质 // TRAIT',
       tenure: '奉献时长 // DEDICATION',
       graduationTenure: '觉醒年限 // AWAKENING',
       certificates: '圣印认证 // SEAL',

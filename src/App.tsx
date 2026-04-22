@@ -4029,7 +4029,16 @@ const App: React.FC = () => {
           </div>
 
           <div className="form-group" style={{ position: 'relative' }}>
-            <label>年龄范围</label>
+            <label style={{
+              display: 'block',
+              marginBottom: '6px',
+              color: currentTheme.colors.textSecondary,
+              fontSize: '12px',
+              textTransform: 'uppercase',
+              letterSpacing: '1px'
+            }}>
+              {currentTheme.labels.age}
+            </label>
             <div style={{ position: 'relative' }}>
               <button
                 type="button"
@@ -4299,7 +4308,16 @@ const App: React.FC = () => {
           </div>
 
           <div className="form-group" style={{ position: 'relative' }}>
-            <label>入司年限（年）</label>
+            <label style={{
+              display: 'block',
+              marginBottom: '6px',
+              color: currentTheme.colors.textSecondary,
+              fontSize: '12px',
+              textTransform: 'uppercase',
+              letterSpacing: '1px'
+            }}>
+              {currentTheme.labels.tenure}
+            </label>
             <div style={{ position: 'relative' }}>
               <button
                 type="button"
@@ -4619,7 +4637,16 @@ const App: React.FC = () => {
           </div>
 
           <div className="form-group" style={{ position: 'relative' }}>
-            <label>毕业年限（年）</label>
+            <label style={{
+              display: 'block',
+              marginBottom: '6px',
+              color: currentTheme.colors.textSecondary,
+              fontSize: '12px',
+              textTransform: 'uppercase',
+              letterSpacing: '1px'
+            }}>
+              {currentTheme.labels.graduationTenure}
+            </label>
             <div style={{ position: 'relative' }}>
               <button
                 type="button"
@@ -4772,7 +4799,16 @@ const App: React.FC = () => {
           </div>
 
           <div className="form-group" style={{ position: 'relative' }}>
-            <label>学历</label>
+            <label style={{
+              display: 'block',
+              marginBottom: '6px',
+              color: currentTheme.colors.textSecondary,
+              fontSize: '12px',
+              textTransform: 'uppercase',
+              letterSpacing: '1px'
+            }}>
+              {currentTheme.labels.education}
+            </label>
             <div style={{ position: 'relative' }}>
               <button
                 type="button"
@@ -4890,7 +4926,16 @@ const App: React.FC = () => {
           </div>
 
           <div className="form-group" style={{ position: 'relative' }}>
-            <label>专业</label>
+            <label style={{
+              display: 'block',
+              marginBottom: '6px',
+              color: currentTheme.colors.textSecondary,
+              fontSize: '12px',
+              textTransform: 'uppercase',
+              letterSpacing: '1px'
+            }}>
+              {currentTheme.labels.major}
+            </label>
             <div style={{ position: 'relative' }}>
               <button
                 type="button"
@@ -5041,7 +5086,16 @@ const App: React.FC = () => {
           </div>
 
           <div className="form-group" style={{ position: 'relative' }}>
-            <label htmlFor="certificate">证书</label>
+            <label htmlFor="certificate" style={{
+              display: 'block',
+              marginBottom: '6px',
+              color: currentTheme.colors.textSecondary,
+              fontSize: '12px',
+              textTransform: 'uppercase',
+              letterSpacing: '1px'
+            }}>
+              {currentTheme.labels.certificates}
+            </label>
             <input
               ref={certInputRef}
               type="text"
