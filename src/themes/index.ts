@@ -1,4 +1,4 @@
-export type ThemeType = 'lighthouse' | 'chimera' | 'mana';
+export type ThemeType = 'classic' | 'lighthouse' | 'chimera' | 'mana';
 
 export interface ThemeLabels {
   aiSearchTitle: string;
@@ -50,6 +50,52 @@ export interface Theme {
 }
 
 export const themes: Record<ThemeType, Theme> = {
+  classic: {
+    id: 'classic',
+    name: '经典风格',
+    nameEn: 'Classic',
+    description: '原网页风格 - 简洁明快',
+    colors: {
+      primary: '#ff6b81',
+      secondary: '#f8f4f0',
+      accent: '#ff8a9b',
+      background: '#ffffff',
+      surface: '#f8f9fa',
+      text: '#333333',
+      textSecondary: '#666666',
+      border: '#e0e0e0',
+      success: '#4CAF50',
+      warning: '#f39c12',
+      danger: '#ff6b81',
+    },
+    fonts: {
+      heading: "'Microsoft YaHei', sans-serif",
+      body: "'Microsoft YaHei', sans-serif",
+    },
+    effects: {
+      glow: false,
+      scanline: false,
+      particles: false,
+      breathing: false,
+      morphing: false,
+    },
+    labels: {
+      aiSearchTitle: 'AI智能筛选',
+      aiSearchSubtitle: '',
+      aiSearchButton: 'AI筛选',
+      aiSearching: '搜索中...',
+      name: '姓名',
+      age: '年龄范围',
+      education: '学历',
+      tenure: '入司年限（年）',
+      graduationTenure: '毕业年限（年）',
+      certificates: '证书',
+      search: '查询',
+      download: '下载',
+      matchScore: '匹配度',
+      logout: '登出',
+    },
+  },
   lighthouse: {
     id: 'lighthouse',
     name: '灯塔控制室',
@@ -190,7 +236,7 @@ export const themes: Record<ThemeType, Theme> = {
   },
 };
 
-export const defaultTheme: ThemeType = 'lighthouse';
+export const defaultTheme: ThemeType = 'classic';
 
 export const getTheme = (themeId: ThemeType): Theme => themes[themeId];
 

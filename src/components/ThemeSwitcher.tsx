@@ -14,6 +14,8 @@ export const ThemeSwitcher: React.FC = () => {
 
   const getThemeIcon = (themeId: ThemeType) => {
     switch (themeId) {
+      case 'classic':
+        return '◎';
       case 'lighthouse':
         return '◉';
       case 'chimera':
@@ -21,7 +23,7 @@ export const ThemeSwitcher: React.FC = () => {
       case 'mana':
         return '✦';
       default:
-        return '◉';
+        return '◎';
     }
   };
 

@@ -61,11 +61,19 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const loadThemeFonts = (themeId: ThemeType) => {
-    const fontLinks: Record<ThemeType, string> = {
+    const fontLinks: Record<ThemeType, string | null> = {
+      classic: null,
       lighthouse: 'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&display=swap',
       chimera: 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap',
       mana: 'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&display=swap',
     };
+    
+    // If no external font needed (classic theme), just remove old links
+    if (!fontLinks[themeId]) {
+      const oldLinks = document.querySelectorAll('link[data-theme-font]');
+      oldLinks.forEach(link => link.remove());
+      return;
+    }
 
     // Remove old font links
     const oldLinks = document.querySelectorAll('link[data-theme-font]');
