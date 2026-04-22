@@ -3075,8 +3075,8 @@ const App: React.FC = () => {
               padding: '32px',
               maxWidth: '400px',
               width: '90%',
-              boxShadow: '0 8px 24px rgba(255, 107, 129, 0.3)',
-              border: '2px solid #ffb3ba'
+              boxShadow: `0 8px 24px ${currentTheme.colors.glow}`,
+              border: `2px solid ${currentTheme.colors.border}`
             }}>
               <div style={{
                 display: 'flex',
@@ -3084,7 +3084,7 @@ const App: React.FC = () => {
                 alignItems: 'center',
                 marginBottom: '20px'
               }}>
-                <h3 style={{ margin: 0, color: '#ff6b81', fontSize: '20px' }}>
+                <h3 style={{ margin: 0, color: currentTheme.colors.primary, fontSize: '20px' }}>
                   联系管理员
                 </h3>
                 <button
@@ -3112,7 +3112,7 @@ const App: React.FC = () => {
                   borderRadius: '12px',
                   marginBottom: '16px'
                 }}>
-                  <p style={{ margin: '0 0 8px 0', fontWeight: '500', color: '#ff6b81' }}>
+                  <p style={{ margin: '0 0 8px 0', fontWeight: '500', color: currentTheme.colors.primary }}>
                     管理员邮箱：
                   </p>
                   <a
@@ -3131,7 +3131,7 @@ const App: React.FC = () => {
                   padding: '16px',
                   borderRadius: '12px'
                 }}>
-                  <p style={{ margin: '0 0 8px 0', fontWeight: '500', color: '#ff6b81' }}>
+                  <p style={{ margin: '0 0 8px 0', fontWeight: '500', color: currentTheme.colors.primary }}>
                     工作时间：
                   </p>
                   <p style={{ margin: 0, color: '#5a3d31' }}>
@@ -3290,7 +3290,7 @@ const App: React.FC = () => {
             maxHeight: '80%',
             overflow: 'auto',
             boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-            border: '2px solid #ffb3ba'
+            border: `2px solid ${currentTheme.colors.border}`
           }}>
             <div style={{
               display: 'flex',
@@ -3331,7 +3331,7 @@ const App: React.FC = () => {
                   {dataSets.map((dataSet) => (
                     <div key={dataSet.id} style={{
                       padding: '12px',
-                      border: `1px solid ${currentDataSetId === dataSet.id ? '#ff6b81' : '#ddd'}`,
+                      border: `1px solid ${currentDataSetId === dataSet.id ? currentTheme.colors.primary : '#ddd'}`,
                       borderRadius: '4px',
                       backgroundColor: currentDataSetId === dataSet.id ? '#fff5f5' : '#ffffff',
                       cursor: 'pointer'
@@ -3862,7 +3862,7 @@ const App: React.FC = () => {
                 style={{
                   flex: 1,
                   padding: '10px 14px',
-                  border: '2px solid #ff6b81',
+                  border: `2px solid ${currentTheme.colors.primary}`,
                   borderRadius: '8px',
                   fontSize: '14px',
                   outline: 'none',
@@ -4021,7 +4021,7 @@ const App: React.FC = () => {
                   transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#ffb3ba';
+                  e.currentTarget.style.borderColor = currentTheme.colors.primary;
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.borderColor = '#ddd';
@@ -4039,7 +4039,7 @@ const App: React.FC = () => {
                   left: 0,
                   right: 0,
                   backgroundColor: '#ffffff',
-                  border: '1px solid #ffb3ba',
+                  border: `1px solid ${currentTheme.colors.border}`,
                   borderRadius: '4px',
                   padding: '10px',
                   zIndex: 1000,
@@ -4242,9 +4242,9 @@ const App: React.FC = () => {
                     style={{
                       width: '100%',
                       padding: '6px 10px',
-                      border: '1px solid #ffb3ba',
+                      border: `1px solid ${currentTheme.colors.primary}`,
                       borderRadius: '4px',
-                      backgroundColor: '#ffb3ba',
+                      backgroundColor: currentTheme.colors.primary,
                       color: '#ffffff',
                       cursor: 'pointer',
                       textAlign: 'center',
@@ -4252,10 +4252,10 @@ const App: React.FC = () => {
                       transition: 'all 0.2s ease'
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#ff6b81';
+                      e.currentTarget.style.backgroundColor = currentTheme.colors.secondary;
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#ffb3ba';
+                      e.currentTarget.style.backgroundColor = currentTheme.colors.primary;
                     }}
                   >
                     应用
@@ -4291,7 +4291,7 @@ const App: React.FC = () => {
                   transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#ffb3ba';
+                  e.currentTarget.style.borderColor = currentTheme.colors.primary;
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.borderColor = '#ddd';
@@ -4309,7 +4309,7 @@ const App: React.FC = () => {
                   left: 0,
                   right: 0,
                   backgroundColor: '#ffffff',
-                  border: '1px solid #ffb3ba',
+                  border: `1px solid ${currentTheme.colors.border}`,
                   borderRadius: '4px',
                   padding: '10px',
                   zIndex: 1000,
@@ -4562,9 +4562,9 @@ const App: React.FC = () => {
                     style={{
                       width: '100%',
                       padding: '6px 10px',
-                      border: '1px solid #ffb3ba',
+                      border: `1px solid ${currentTheme.colors.primary}`,
                       borderRadius: '4px',
-                      backgroundColor: '#ffb3ba',
+                      backgroundColor: currentTheme.colors.primary,
                       color: '#ffffff',
                       cursor: 'pointer',
                       textAlign: 'center',
@@ -4572,10 +4572,10 @@ const App: React.FC = () => {
                       transition: 'all 0.2s ease'
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#ff6b81';
+                      e.currentTarget.style.backgroundColor = currentTheme.colors.secondary;
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#ffb3ba';
+                      e.currentTarget.style.backgroundColor = currentTheme.colors.primary;
                     }}
                   >
                     应用
@@ -4611,7 +4611,7 @@ const App: React.FC = () => {
                   transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#ffb3ba';
+                  e.currentTarget.style.borderColor = currentTheme.colors.primary;
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.borderColor = '#ddd';
@@ -4629,7 +4629,7 @@ const App: React.FC = () => {
                   left: 0,
                   right: 0,
                   backgroundColor: '#ffffff',
-                  border: '1px solid #ffb3ba',
+                  border: `1px solid ${currentTheme.colors.border}`,
                   borderRadius: '4px',
                   padding: '10px',
                   zIndex: 1000,
@@ -4715,9 +4715,9 @@ const App: React.FC = () => {
                     style={{
                       width: '100%',
                       padding: '6px 10px',
-                      border: '1px solid #ffb3ba',
+                      border: `1px solid ${currentTheme.colors.primary}`,
                       borderRadius: '4px',
-                      backgroundColor: '#ffb3ba',
+                      backgroundColor: currentTheme.colors.primary,
                       color: '#ffffff',
                       cursor: 'pointer',
                       textAlign: 'center',
@@ -4725,10 +4725,10 @@ const App: React.FC = () => {
                       transition: 'all 0.2s ease'
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#ff6b81';
+                      e.currentTarget.style.backgroundColor = currentTheme.colors.secondary;
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#ffb3ba';
+                      e.currentTarget.style.backgroundColor = currentTheme.colors.primary;
                     }}
                   >
                     应用
@@ -4773,7 +4773,7 @@ const App: React.FC = () => {
                   left: 0,
                   right: 0,
                   backgroundColor: '#ffffff',
-                  border: '1px solid #ffb3ba',
+                  border: `1px solid ${currentTheme.colors.border}`,
                   borderRadius: '4px',
                   padding: '10px',
                   zIndex: 1000,
@@ -4898,7 +4898,7 @@ const App: React.FC = () => {
                   left: 0,
                   right: 0,
                   backgroundColor: '#ffffff',
-                  border: '1px solid #ffb3ba',
+                  border: `1px solid ${currentTheme.colors.border}`,
                   borderRadius: '4px',
                   zIndex: 1000,
                   marginTop: '5px',
@@ -5061,14 +5061,14 @@ const App: React.FC = () => {
             {certificateError && (
               <p style={{ color: '#ff6b81', fontSize: '12px', marginTop: '5px' }}>{certificateError}</p>
             )}
-            <div 
+            <div
               style={{
                 position: 'absolute',
                 top: '100%',
                 left: 0,
                 right: 0,
                 backgroundColor: '#ffffff',
-                border: '1px solid #ffb3ba',
+                border: `1px solid ${currentTheme.colors.border}`,
                 borderRadius: '4px',
                 maxHeight: showCertDropdown && filteredCertOptions.length > 0 ? '200px' : '0',
                 opacity: showCertDropdown && filteredCertOptions.length > 0 ? 1 : 0,
@@ -5241,9 +5241,9 @@ const App: React.FC = () => {
                 }}
                 style={{
                   padding: '6px 12px',
-                  border: '1px solid #ffb3ba',
+                  border: `1px solid ${currentTheme.colors.primary}`,
                   borderRadius: '4px',
-                  backgroundColor: '#ffb3ba',
+                  backgroundColor: currentTheme.colors.primary,
                   color: '#ffffff',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease'
@@ -5252,21 +5252,21 @@ const App: React.FC = () => {
                 创建用户
               </button>
             </div>
-            <div style={{ 
-              maxHeight: '300px', 
-              overflowY: 'auto', 
-              backgroundColor: '#f8f9fa', 
-              padding: '16px', 
+            <div style={{
+              maxHeight: '300px',
+              overflowY: 'auto',
+              backgroundColor: '#f8f9fa',
+              padding: '16px',
               borderRadius: '8px',
-              border: '1px solid #ffb3ba'
+              border: `1px solid ${currentTheme.colors.border}`
             }}>
               {users.map((user) => (
-                <div key={user.id} style={{ 
-                  marginBottom: '12px', 
-                  padding: '12px', 
+                <div key={user.id} style={{
+                  marginBottom: '12px',
+                  padding: '12px',
                   backgroundColor: '#ffffff',
                   borderRadius: '4px',
-                  border: '1px solid #ffb3ba',
+                  border: `1px solid ${currentTheme.colors.border}`,
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center'
@@ -5344,9 +5344,9 @@ const App: React.FC = () => {
                       disabled={user.id === '1'}
                       style={{
                         padding: '4px 8px',
-                        border: '1px solid #ff6b81',
+                        border: `1px solid ${currentTheme.colors.primary}`,
                         borderRadius: '4px',
-                        backgroundColor: '#ff6b81',
+                        backgroundColor: currentTheme.colors.primary,
                         color: '#ffffff',
                         cursor: user.id === '1' ? 'not-allowed' : 'pointer',
                         opacity: user.id === '1' ? 0.5 : 1,
@@ -5371,9 +5371,9 @@ const App: React.FC = () => {
                 onClick={() => handleRoleChange('admin')}
                 style={{
                   padding: '6px 12px',
-                  border: userRole === 'admin' ? '1px solid #ffb3ba' : '1px solid #ddd',
+                  border: userRole === 'admin' ? `1px solid ${currentTheme.colors.primary}` : '1px solid #ddd',
                   borderRadius: '4px',
-                  backgroundColor: userRole === 'admin' ? '#ffb3ba' : '#ffffff',
+                  backgroundColor: userRole === 'admin' ? currentTheme.colors.primary : '#ffffff',
                   color: userRole === 'admin' ? '#ffffff' : '#000000',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease'
@@ -5386,9 +5386,9 @@ const App: React.FC = () => {
                 onClick={() => handleRoleChange('member')}
                 style={{
                   padding: '6px 12px',
-                  border: userRole === 'member' ? '1px solid #ffb3ba' : '1px solid #ddd',
+                  border: userRole === 'member' ? `1px solid ${currentTheme.colors.primary}` : '1px solid #ddd',
                   borderRadius: '4px',
-                  backgroundColor: userRole === 'member' ? '#ffb3ba' : '#ffffff',
+                  backgroundColor: userRole === 'member' ? currentTheme.colors.primary : '#ffffff',
                   color: userRole === 'member' ? '#ffffff' : '#000000',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease'
@@ -5476,19 +5476,19 @@ const App: React.FC = () => {
             <h3>文件管理</h3>
             <p>上传文件数: {files.length}</p>
             {files.length > 0 ? (
-              <div style={{ 
-                maxHeight: '200px', 
-                overflowY: 'auto', 
-                backgroundColor: '#f8f9fa', 
-                padding: '16px', 
+              <div style={{
+                maxHeight: '200px',
+                overflowY: 'auto',
+                backgroundColor: '#f8f9fa',
+                padding: '16px',
                 borderRadius: '8px',
-                border: '1px solid #ffb3ba'
+                border: `1px solid ${currentTheme.colors.border}`
               }}>
                 {files.map((file) => (
-                  <div key={file.id} style={{ 
-                    marginBottom: '8px', 
-                    paddingBottom: '8px', 
-                    borderBottom: '1px solid #ffb3ba',
+                  <div key={file.id} style={{
+                    marginBottom: '8px',
+                    paddingBottom: '8px',
+                    borderBottom: `1px solid ${currentTheme.colors.border}`,
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center'
@@ -5504,9 +5504,9 @@ const App: React.FC = () => {
                       disabled={userRole !== 'admin'}
                       style={{
                         padding: '6px 12px',
-                        border: '1px solid #ff6b81',
+                        border: `1px solid ${currentTheme.colors.primary}`,
                         borderRadius: '4px',
-                        backgroundColor: '#ff6b81',
+                        backgroundColor: currentTheme.colors.primary,
                         color: '#ffffff',
                         cursor: userRole === 'admin' ? 'pointer' : 'not-allowed',
                         opacity: userRole === 'admin' ? 1 : 0.5,
@@ -5529,14 +5529,14 @@ const App: React.FC = () => {
               <h3>存储数据</h3>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
                 <p style={{ margin: 0 }}>总记录数: {people.length}</p>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setPeople([])}
                   style={{
                     padding: '4px 8px',
-                    border: '1px solid #ff6b81',
+                    border: `1px solid ${currentTheme.colors.primary}`,
                     borderRadius: '4px',
-                    backgroundColor: '#ff6b81',
+                    backgroundColor: currentTheme.colors.primary,
                     color: '#ffffff',
                     cursor: 'pointer',
                     fontSize: '12px'
@@ -5544,15 +5544,15 @@ const App: React.FC = () => {
                 >
                   清空所有数据
                 </button>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={handleBatchDelete}
                   disabled={selectedPeople.length === 0}
                   style={{
                     padding: '4px 8px',
-                    border: '1px solid #ff6b81',
+                    border: `1px solid ${currentTheme.colors.primary}`,
                     borderRadius: '4px',
-                    backgroundColor: '#ff6b81',
+                    backgroundColor: currentTheme.colors.primary,
                     color: '#ffffff',
                     cursor: selectedPeople.length > 0 ? 'pointer' : 'not-allowed',
                     opacity: selectedPeople.length > 0 ? 1 : 0.5,
@@ -5565,30 +5565,30 @@ const App: React.FC = () => {
               {people.length > 0 && (
                 <div style={{ marginTop: '16px' }}>
                   <h4>完整数据查阅</h4>
-                  <div style={{ 
-                    maxHeight: '400px', 
-                    overflowY: 'auto', 
-                    backgroundColor: '#f8f9fa', 
-                    padding: '16px', 
+                  <div style={{
+                    maxHeight: '400px',
+                    overflowY: 'auto',
+                    backgroundColor: '#f8f9fa',
+                    padding: '16px',
                     borderRadius: '8px',
-                    border: '1px solid #ffb3ba'
+                    border: `1px solid ${currentTheme.colors.border}`
                   }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
-                        <tr style={{ backgroundColor: '#ffb3ba' }}>
-                          <th style={{ padding: '8px', textAlign: 'center', border: '1px solid #ffb3ba', width: '50px' }}>
+                        <tr style={{ backgroundColor: currentTheme.colors.border }}>
+                          <th style={{ padding: '8px', textAlign: 'center', border: `1px solid ${currentTheme.colors.border}`, width: '50px' }}>
                             <input
                               type="checkbox"
                               checked={people.length > 0 && selectedPeople.length === people.length}
                               onChange={(e) => handleSelectAll(e.target.checked)}
                             />
                           </th>
-                          <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ffb3ba' }}>工号</th>
-                          <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ffb3ba' }}>姓名</th>
-                          <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ffb3ba' }}>年龄</th>
-                          <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ffb3ba' }}>学历</th>
-                          <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ffb3ba' }}>证书</th>
-                          <th style={{ padding: '8px', textAlign: 'center', border: '1px solid #ffb3ba', width: '80px' }}>操作</th>
+                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>工号</th>
+                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>姓名</th>
+                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>年龄</th>
+                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>学历</th>
+                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>证书</th>
+                          <th style={{ padding: '8px', textAlign: 'center', border: `1px solid ${currentTheme.colors.border}`, width: '80px' }}>操作</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -5599,40 +5599,40 @@ const App: React.FC = () => {
                           const startIndex = (validPage - 1) * pageSize;
                           const endIndex = Math.min(startIndex + pageSize, people.length);
                           const paginatedData = people.slice(startIndex, endIndex);
-                          
+
                           // 如果页码无效，自动修正
                           if (validPage !== currentPage) {
                             setCurrentPage(validPage);
                           }
-                          
+
                           return paginatedData.map((person) => {
                             const enriched = (person as any)._certDisplay !== undefined ? person as EnrichedPerson : enrichPersonData(person);
 
                             return (
                               <tr key={person.id} style={{ backgroundColor: '#ffffff' }}>
-                                <td style={{ padding: '8px', border: '1px solid #ffb3ba', textAlign: 'center' }}>
+                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, textAlign: 'center' }}>
                                   <input
                                     type="checkbox"
                                     checked={selectedPeople.includes(person.id)}
                                     onChange={() => handlePersonSelect(person.id)}
                                   />
                                 </td>
-                                <td style={{ padding: '8px', border: '1px solid #ffb3ba' }}>{person.employeeId || '-'}</td>
-                                <td style={{ padding: '8px', border: '1px solid #ffb3ba' }}>{person.name || '-'}</td>
-                                <td style={{ padding: '8px', border: '1px solid #ffb3ba' }}>{getPersonAge(person) || '-'}</td>
-                                <td style={{ padding: '8px', border: '1px solid #ffb3ba' }}>{person.education || '-'}</td>
-                                <td style={{ padding: '8px', border: '1px solid #ffb3ba' }}>
+                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}` }}>{person.employeeId || '-'}</td>
+                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}` }}>{person.name || '-'}</td>
+                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}` }}>{getPersonAge(person) || '-'}</td>
+                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}` }}>{person.education || '-'}</td>
+                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}` }}>
                                   {enriched._certDisplay || '无'}
                                 </td>
-                                <td style={{ padding: '8px', border: '1px solid #ffb3ba', textAlign: 'center' }}>
+                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, textAlign: 'center' }}>
                                   <button
                                     type="button"
                                     onClick={() => handlePersonDelete(person.id, person.name)}
                                     style={{
                                       padding: '2px 6px',
-                                      border: '1px solid #ff6b81',
+                                      border: `1px solid ${currentTheme.colors.primary}`,
                                       borderRadius: '4px',
-                                      backgroundColor: '#ff6b81',
+                                      backgroundColor: currentTheme.colors.primary,
                                       color: '#ffffff',
                                       cursor: 'pointer',
                                       fontSize: '10px'
@@ -5663,9 +5663,9 @@ const App: React.FC = () => {
                         disabled={currentPage === 1}
                         style={{
                           padding: '6px 12px',
-                          border: '1px solid #ff6b81',
+                          border: `1px solid ${currentTheme.colors.primary}`,
                           borderRadius: '4px',
-                          backgroundColor: currentPage === 1 ? '#f0f0f0' : '#ff6b81',
+                          backgroundColor: currentPage === 1 ? '#f0f0f0' : currentTheme.colors.primary,
                           color: currentPage === 1 ? '#999' : '#ffffff',
                           cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
                         }}
@@ -5680,9 +5680,9 @@ const App: React.FC = () => {
                         disabled={currentPage >= Math.ceil(people.length / pageSize)}
                         style={{
                           padding: '6px 12px',
-                          border: '1px solid #ff6b81',
+                          border: `1px solid ${currentTheme.colors.primary}`,
                           borderRadius: '4px',
-                          backgroundColor: currentPage >= Math.ceil(people.length / pageSize) ? '#f0f0f0' : '#ff6b81',
+                          backgroundColor: currentPage >= Math.ceil(people.length / pageSize) ? '#f0f0f0' : currentTheme.colors.primary,
                           color: currentPage >= Math.ceil(people.length / pageSize) ? '#999' : '#ffffff',
                           cursor: currentPage >= Math.ceil(people.length / pageSize) ? 'not-allowed' : 'pointer'
                         }}
@@ -5699,13 +5699,13 @@ const App: React.FC = () => {
           {/* 后台日志 */}
           <div>
             <h3>后台日志</h3>
-            <div style={{ 
-              maxHeight: '400px', 
-              overflowY: 'auto', 
-              backgroundColor: '#f8f9fa', 
-              padding: '16px', 
+            <div style={{
+              maxHeight: '400px',
+              overflowY: 'auto',
+              backgroundColor: '#f8f9fa',
+              padding: '16px',
               borderRadius: '8px',
-              border: '1px solid #ffb3ba'
+              border: `1px solid ${currentTheme.colors.border}`
             }}>
               {logs.length > 0 ? (
                 logs.map((log, index) => (
@@ -5726,13 +5726,13 @@ const App: React.FC = () => {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ backgroundColor: '#ffb3ba' }}>
-                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #ffb3ba' }}>工号</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #ffb3ba' }}>姓名</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #ffb3ba' }}>年龄</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #ffb3ba' }}>学历</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #ffb3ba' }}>专业</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #ffb3ba' }}>证书</th>
+                  <tr style={{ backgroundColor: currentTheme.colors.border }}>
+                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>工号</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>姓名</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>年龄</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>学历</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>专业</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>证书</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -5743,23 +5743,23 @@ const App: React.FC = () => {
                     const startIndex = (validPage - 1) * pageSize;
                     const endIndex = Math.min(startIndex + pageSize, filteredPeople.length);
                     const paginatedData = filteredPeople.slice(startIndex, endIndex);
-                    
+
                     // 如果页码无效，自动修正
                     if (validPage !== filteredCurrentPage) {
                       setFilteredCurrentPage(validPage);
                     }
-                    
+
                     return paginatedData.map((person) => {
                       const enriched = (person as any)._certDisplay !== undefined ? person as EnrichedPerson : enrichPersonData(person, filters.certificate);
 
                       return (
                         <tr key={person.id} style={{ backgroundColor: '#ffffff' }}>
-                          <td style={{ padding: '12px', border: '1px solid #ffb3ba' }}>{person.employeeId || '-'}</td>
-                          <td style={{ padding: '12px', border: '1px solid #ffb3ba' }}>{person.name || '-'}</td>
-                          <td style={{ padding: '12px', border: '1px solid #ffb3ba' }}>{getPersonAge(person) || '-'}</td>
-                          <td style={{ padding: '12px', border: '1px solid #ffb3ba' }}>{person.education || '-'}</td>
-                          <td style={{ padding: '12px', border: '1px solid #ffb3ba' }}>{person.major || '-'}</td>
-                          <td style={{ padding: '12px', border: '1px solid #ffb3ba' }}>
+                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}` }}>{person.employeeId || '-'}</td>
+                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}` }}>{person.name || '-'}</td>
+                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}` }}>{getPersonAge(person) || '-'}</td>
+                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}` }}>{person.education || '-'}</td>
+                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}` }}>{person.major || '-'}</td>
+                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}` }}>
                             {enriched._certDisplay || '无'}
                           </td>
                         </tr>
@@ -5787,9 +5787,9 @@ const App: React.FC = () => {
                 disabled={filteredCurrentPage <= 1}
                 style={{
                   padding: '6px 12px',
-                  border: '1px solid #ff6b81',
+                  border: `1px solid ${currentTheme.colors.primary}`,
                   borderRadius: '4px',
-                  backgroundColor: filteredCurrentPage <= 1 ? '#f0f0f0' : '#ff6b81',
+                  backgroundColor: filteredCurrentPage <= 1 ? '#f0f0f0' : currentTheme.colors.primary,
                   color: filteredCurrentPage <= 1 ? '#999' : '#ffffff',
                   cursor: filteredCurrentPage <= 1 ? 'not-allowed' : 'pointer'
                 }}
@@ -5804,9 +5804,9 @@ const App: React.FC = () => {
                 disabled={filteredCurrentPage >= Math.ceil(filteredPeople.length / pageSize)}
                 style={{
                   padding: '6px 12px',
-                  border: '1px solid #ff6b81',
+                  border: `1px solid ${currentTheme.colors.primary}`,
                   borderRadius: '4px',
-                  backgroundColor: filteredCurrentPage >= Math.ceil(filteredPeople.length / pageSize) ? '#f0f0f0' : '#ff6b81',
+                  backgroundColor: filteredCurrentPage >= Math.ceil(filteredPeople.length / pageSize) ? '#f0f0f0' : currentTheme.colors.primary,
                   color: filteredCurrentPage >= Math.ceil(filteredPeople.length / pageSize) ? '#999' : '#ffffff',
                   cursor: filteredCurrentPage >= Math.ceil(filteredPeople.length / pageSize) ? 'not-allowed' : 'pointer'
                 }}
@@ -5839,7 +5839,7 @@ const App: React.FC = () => {
             maxWidth: '400px',
             width: '100%',
             boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-            border: '2px solid #ffb3ba'
+            border: `2px solid ${currentTheme.colors.border}`
           }}>
             <div style={{
               display: 'flex',
@@ -5847,7 +5847,7 @@ const App: React.FC = () => {
               alignItems: 'center',
               marginBottom: '20px'
             }}>
-              <h3 style={{ margin: 0, color: '#ff6b81' }}>
+              <h3 style={{ margin: 0, color: currentTheme.colors.primary }}>
                 {editingUser ? '编辑用户' : '创建用户'}
               </h3>
               <button
@@ -5989,9 +5989,9 @@ const App: React.FC = () => {
                 disabled={isLoading || Object.keys(validationErrors).length > 0 || !newUser.username.trim() || !newUser.password}
                 style={{
                   padding: '8px 16px',
-                  border: '1px solid #ffb3ba',
+                  border: `1px solid ${currentTheme.colors.primary}`,
                   borderRadius: '4px',
-                  backgroundColor: isLoading || Object.keys(validationErrors).length > 0 || !newUser.username.trim() || !newUser.password ? '#ffcccc' : '#ffb3ba',
+                  backgroundColor: isLoading || Object.keys(validationErrors).length > 0 || !newUser.username.trim() || !newUser.password ? '#ffcccc' : currentTheme.colors.primary,
                   color: '#ffffff',
                   cursor: isLoading || Object.keys(validationErrors).length > 0 || !newUser.username.trim() || !newUser.password ? 'not-allowed' : 'pointer',
                   opacity: isLoading || Object.keys(validationErrors).length > 0 || !newUser.username.trim() || !newUser.password ? 0.7 : 1,
@@ -6026,7 +6026,7 @@ const App: React.FC = () => {
             maxWidth: '400px',
             width: '90%',
             boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-            border: '2px solid #ffb3ba'
+            border: `2px solid ${currentTheme.colors.border}`
           }}>
             <div style={{
               display: 'flex',
@@ -6167,7 +6167,7 @@ const App: React.FC = () => {
             maxWidth: '400px',
             width: '90%',
             boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-            border: '2px solid #ffb3ba'
+            border: `2px solid ${currentTheme.colors.border}`
           }}>
             <div style={{
               display: 'flex',
@@ -6175,7 +6175,7 @@ const App: React.FC = () => {
               alignItems: 'center',
               marginBottom: '20px'
             }}>
-              <h3 style={{ margin: 0, color: '#5a3d31' }}>编辑用户权限 - {editingPermissionsUser.username}</h3>
+              <h3 style={{ margin: 0, color: currentTheme.colors.primary }}>编辑用户权限 - {editingPermissionsUser.username}</h3>
               <button
                 onClick={() => {
                   setShowPermissionModal(false);
