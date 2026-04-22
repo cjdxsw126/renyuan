@@ -3636,10 +3636,10 @@ const App: React.FC = () => {
             onClick={handleLogout}
             style={{
               padding: '10px 20px',
-              background: currentTheme.colors.danger,
-              border: 'none',
+              background: 'transparent',
+              border: `1px solid ${currentTheme.colors.primary}`,
               borderRadius: '6px',
-              color: '#fff',
+              color: currentTheme.colors.primary,
               fontSize: '14px',
               fontWeight: 600,
               cursor: 'pointer',
@@ -3648,10 +3648,14 @@ const App: React.FC = () => {
               letterSpacing: '1px'
             }}
             onMouseEnter={(e) => {
+              e.currentTarget.style.background = currentTheme.colors.primary;
+              e.currentTarget.style.color = currentTheme.colors.background;
               e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = `0 4px 15px ${currentTheme.colors.danger}50`;
+              e.currentTarget.style.boxShadow = `0 4px 15px ${currentTheme.colors.primary}50`;
             }}
             onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = currentTheme.colors.primary;
               e.currentTarget.style.transform = 'translateY(0)';
               e.currentTarget.style.boxShadow = 'none';
             }}
