@@ -3456,46 +3456,57 @@ const App: React.FC = () => {
       <div className="header" style={{ 
         borderBottom: `1px solid ${currentTheme.colors.border}`,
         padding: '20px 0',
-        marginBottom: '30px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
+        marginBottom: '30px'
       }}>
-        <h1 style={{
-          fontSize: '28px',
-          fontWeight: 700,
-          color: currentTheme.colors.primary,
-          fontFamily: currentTheme.fonts.heading,
-          letterSpacing: '4px',
-          margin: 0,
+        {/* 标题行 */}
+        <div style={{
           display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '15px'
+          marginBottom: '15px'
         }}>
-          <span style={{
-            display: 'inline-flex',
+          <h1 style={{
+            fontSize: '24px',
+            fontWeight: 700,
+            color: currentTheme.colors.primary,
+            fontFamily: currentTheme.fonts.heading,
+            letterSpacing: '2px',
+            margin: 0,
+            display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            width: '50px',
-            height: '50px',
-            borderRadius: '50%',
-            border: `2px solid ${currentTheme.colors.primary}`,
-            background: currentTheme.colors.surface,
-            fontSize: '14px',
-            fontWeight: 'bold',
-            boxShadow: `0 0 10px ${currentTheme.colors.glow || currentTheme.colors.primary}40`
+            gap: '12px'
           }}>
-            {currentTheme.id === 'lighthouse' ? '灯塔' : currentTheme.id === 'chimera' ? '生态' : currentTheme.id === 'mana' ? '玛娜' : '经典'}
-          </span>
-          <span>
-            {currentTheme.name}
-            <span style={{ color: currentTheme.colors.textSecondary, margin: '0 8px' }}>//</span>
-            <span style={{ fontSize: '20px', color: currentTheme.colors.text }}>人员筛选系统</span>
-            <span style={{ color: currentTheme.colors.textSecondary, margin: '0 8px' }}>//</span>
-            <span style={{ fontSize: '18px', letterSpacing: '2px' }}>PERSONNEL FILTER</span>
-          </span>
-        </h1>
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%',
+              border: `2px solid ${currentTheme.colors.primary}`,
+              background: currentTheme.colors.surface,
+              fontSize: '13px',
+              fontWeight: 'bold',
+              boxShadow: `0 0 10px ${currentTheme.colors.glow || currentTheme.colors.primary}40`,
+              flexShrink: 0
+            }}>
+              {currentTheme.id === 'lighthouse' ? '灯塔' : currentTheme.id === 'chimera' ? '生态' : currentTheme.id === 'mana' ? '玛娜' : '经典'}
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+              <span>{currentTheme.name}</span>
+              <span style={{ color: currentTheme.colors.textSecondary, margin: '0 6px' }}>//</span>
+              <span style={{ fontSize: '18px', color: currentTheme.colors.text }}>人员筛选系统</span>
+              <span style={{ color: currentTheme.colors.textSecondary, margin: '0 6px' }}>//</span>
+              <span style={{ fontSize: '16px', letterSpacing: '1px' }}>PERSONNEL FILTER</span>
+            </span>
+          </h1>
+          
+          {/* 主题切换器 */}
+          <ThemeSwitcher />
+        </div>
+        
+        {/* 操作按钮行 */}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           {/* 当前用户信息展示 */}
           {isLoggedIn && (
             <div style={{
@@ -3686,8 +3697,6 @@ const App: React.FC = () => {
           >
             {currentTheme.labels.logout}
           </button>
-          {/* 主题切换按钮 */}
-          <ThemeSwitcher />
         </div>
       </div>
 
