@@ -3666,24 +3666,42 @@ const App: React.FC = () => {
         <div>
           {/* AI 智能搜索区域 */}
           <div style={{
-            backgroundColor: '#f8f4f0',
+            background: currentTheme.colors.surface,
             borderRadius: '12px',
             padding: '16px 20px',
             marginBottom: '20px',
-            border: '2px solid #ffb3ba'
+            border: `1px solid ${currentTheme.colors.border}`
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-              <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#5a3d31' }}>🤖 AI 智能筛选</span>
+              <span style={{ 
+                fontSize: '16px', 
+                fontWeight: 'bold', 
+                color: currentTheme.colors.primary,
+                fontFamily: currentTheme.fonts.heading,
+                letterSpacing: '2px'
+              }}>
+                {currentTheme.labels.aiSearchTitle} // {currentTheme.labels.aiSearchSubtitle}
+              </span>
               <button
                 type="button"
                 onClick={() => setShowAISettings(!showAISettings)}
                 style={{
                   fontSize: '12px',
-                  padding: '2px 8px',
-                  backgroundColor: '#fff',
-                  border: '1px solid #ddd',
+                  padding: '4px 12px',
+                  background: 'transparent',
+                  border: `1px solid ${currentTheme.colors.primary}`,
                   borderRadius: '10px',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  color: currentTheme.colors.primary,
+                  transition: 'all 0.3s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = currentTheme.colors.primary;
+                  e.currentTarget.style.color = currentTheme.colors.background;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = currentTheme.colors.primary;
                 }}
               >
                 ⚙️ 设置
@@ -3692,14 +3710,14 @@ const App: React.FC = () => {
 
             {showAISettings && (
               <div style={{
-                backgroundColor: '#fff',
+                background: currentTheme.colors.surface,
                 borderRadius: '8px',
                 padding: '16px',
                 marginBottom: '12px',
-                border: '1px solid #ddd'
+                border: `1px solid ${currentTheme.colors.border}`
               }}>
                 <div style={{ marginBottom: '14px' }}>
-                  <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '8px' }}>选择 AI 模型</label>
+                  <label style={{ fontSize: '13px', color: currentTheme.colors.textSecondary, display: 'block', marginBottom: '8px' }}>选择 AI 模型</label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {[
                       { id: 'deepseek', name: 'DeepSeek', desc: '推荐', color: '#4a6cf7' },
@@ -3735,7 +3753,7 @@ const App: React.FC = () => {
                   </div>
                 </div>
                   <div>
-                    <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '4px' }}>API Key *</label>
+                    <label style={{ fontSize: '13px', color: currentTheme.colors.textSecondary, display: 'block', marginBottom: '4px' }}>API Key *</label>
                     <input
                       type="password"
                       value={aiApiKey}
@@ -3744,9 +3762,18 @@ const App: React.FC = () => {
                       style={{
                         width: '100%',
                         padding: '8px 12px',
-                        border: '1px solid #ddd',
+                        background: 'rgba(0,0,0,0.3)',
+                        border: `1px solid ${currentTheme.colors.border}`,
                         borderRadius: '6px',
-                        fontSize: '14px'
+                        fontSize: '14px',
+                        color: currentTheme.colors.text,
+                        outline: 'none'
+                      }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = currentTheme.colors.primary;
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = currentTheme.colors.border;
                       }}
                     />
                   </div>
@@ -3903,9 +3930,23 @@ const App: React.FC = () => {
           </div>
 
           {/* 原有筛选表单 */}
-          <div className="filter-container">
+          <div className="filter-container" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '16px',
+            marginTop: '20px'
+          }}>
           <div className="form-group">
-            <label htmlFor="name">姓名</label>
+            <label htmlFor="name" style={{ 
+              display: 'block', 
+              marginBottom: '6px', 
+              color: currentTheme.colors.textSecondary,
+              fontSize: '12px',
+              textTransform: 'uppercase',
+              letterSpacing: '1px'
+            }}>
+              {currentTheme.labels.name}
+            </label>
             <input
               type="text"
               id="name"
@@ -3913,6 +3954,23 @@ const App: React.FC = () => {
               value={filters.name}
               onChange={handleFilterChange}
               placeholder="输入姓名"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                background: 'rgba(0,0,0,0.3)',
+                border: `1px solid ${currentTheme.colors.border}`,
+                borderRadius: '6px',
+                color: currentTheme.colors.text,
+                fontSize: '14px',
+                outline: 'none',
+                transition: 'all 0.3s'
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = currentTheme.colors.primary;
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = currentTheme.colors.border;
+              }}
             />
           </div>
 

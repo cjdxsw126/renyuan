@@ -1,5 +1,19 @@
 export type ThemeType = 'lighthouse' | 'chimera' | 'mana';
 
+export interface ThemeLabels {
+  aiSearchTitle: string;
+  aiSearchSubtitle: string;
+  name: string;
+  age: string;
+  education: string;
+  tenure: string;
+  graduationTenure: string;
+  certificates: string;
+  search: string;
+  download: string;
+  matchScore: string;
+}
+
 export interface Theme {
   id: ThemeType;
   name: string;
@@ -29,6 +43,7 @@ export interface Theme {
     breathing: boolean;
     morphing: boolean;
   };
+  labels: ThemeLabels;
 }
 
 export const themes: Record<ThemeType, Theme> = {
@@ -61,6 +76,19 @@ export const themes: Record<ThemeType, Theme> = {
       breathing: false,
       morphing: false,
     },
+    labels: {
+      aiSearchTitle: 'AI智能筛选',
+      aiSearchSubtitle: 'SMART SEARCH PROTOCOL',
+      name: '姓名 // NAME',
+      age: '年龄范围 // AGE',
+      education: '学历 // EDUCATION',
+      tenure: '入司年限 // TENURE',
+      graduationTenure: '毕业年限 // GRADUATION',
+      certificates: '证书要求 // CERTIFICATES',
+      search: '查询 // SEARCH',
+      download: '下载 // DOWNLOAD',
+      matchScore: '匹配度 // MATCH',
+    },
   },
   chimera: {
     id: 'chimera',
@@ -91,6 +119,19 @@ export const themes: Record<ThemeType, Theme> = {
       breathing: true,
       morphing: true,
     },
+    labels: {
+      aiSearchTitle: '生命探测',
+      aiSearchSubtitle: 'LIFE FORM DETECTION',
+      name: '生命体标识 // IDENTITY',
+      age: '年龄周期 // AGE CYCLE',
+      education: '知识等级 // KNOWLEDGE',
+      tenure: '服务时长 // SERVICE',
+      graduationTenure: '进化年限 // EVOLUTION',
+      certificates: '能力认证 // ABILITY',
+      search: '探测 // DETECT',
+      download: '提取 // EXTRACT',
+      matchScore: '适配度 // FIT',
+    },
   },
   mana: {
     id: 'mana',
@@ -120,6 +161,19 @@ export const themes: Record<ThemeType, Theme> = {
       particles: true,
       breathing: true,
       morphing: false,
+    },
+    labels: {
+      aiSearchTitle: '神启筛选',
+      aiSearchSubtitle: 'DIVINE SEARCH',
+      name: '灵魂之名 // NAME',
+      age: '岁月轮回 // AGE',
+      education: '智慧等级 // WISDOM',
+      tenure: '奉献时长 // DEDICATION',
+      graduationTenure: '觉醒年限 // AWAKENING',
+      certificates: '圣印认证 // SEAL',
+      search: '启示录 // REVELATION',
+      download: '圣典 // SCRIPTURE',
+      matchScore: '契合度 // BOND',
     },
   },
 };
