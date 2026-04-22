@@ -4010,20 +4010,23 @@ const App: React.FC = () => {
               placeholder="输入姓名"
               style={{
                 width: '100%',
-                padding: '10px 12px',
-                background: 'rgba(0,0,0,0.3)',
+                padding: '10px 14px',
+                background: currentTheme.colors.surface,
                 border: `1px solid ${currentTheme.colors.border}`,
-                borderRadius: '6px',
+                borderRadius: '8px',
                 color: currentTheme.colors.text,
                 fontSize: '14px',
                 outline: 'none',
-                transition: 'all 0.3s'
+                transition: 'all 0.3s',
+                boxShadow: `0 0 8px ${currentTheme.colors.border}`
               }}
               onFocus={(e) => {
-                e.target.style.borderColor = currentTheme.colors.primary;
+                e.target.style.borderColor = currentTheme.colors.accent;
+                e.target.style.boxShadow = `0 0 12px ${currentTheme.colors.accent}`;
               }}
               onBlur={(e) => {
                 e.target.style.borderColor = currentTheme.colors.border;
+                e.target.style.boxShadow = `0 0 8px ${currentTheme.colors.border}`;
               }}
             />
           </div>
@@ -4047,12 +4050,12 @@ const App: React.FC = () => {
                   width: '100%',
                   minWidth: '120px',
                   maxWidth: '180px',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
+                  padding: '10px 14px',
+                  border: `1px solid ${currentTheme.colors.border}`,
+                  borderRadius: '8px',
                   textAlign: 'left',
-                  backgroundColor: '#ffffff',
-                  color: '#000000',
+                  background: currentTheme.colors.surface,
+                  color: currentTheme.colors.text,
                   cursor: 'pointer',
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -4060,13 +4063,16 @@ const App: React.FC = () => {
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  boxShadow: `0 0 8px ${currentTheme.colors.border}`
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = currentTheme.colors.primary;
+                  e.currentTarget.style.borderColor = currentTheme.colors.accent;
+                  e.currentTarget.style.boxShadow = `0 0 12px ${currentTheme.colors.accent}`;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#ddd';
+                  e.currentTarget.style.borderColor = currentTheme.colors.border;
+                  e.currentTarget.style.boxShadow = `0 0 8px ${currentTheme.colors.border}`;
                 }}
               >
                 <span style={{ maxWidth: 'calc(100% - 20px)' }}>
@@ -4326,12 +4332,12 @@ const App: React.FC = () => {
                   width: '100%',
                   minWidth: '120px',
                   maxWidth: '180px',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
+                  padding: '10px 14px',
+                  border: `1px solid ${currentTheme.colors.border}`,
+                  borderRadius: '8px',
                   textAlign: 'left',
-                  backgroundColor: '#ffffff',
-                  color: '#000000',
+                  background: currentTheme.colors.surface,
+                  color: currentTheme.colors.text,
                   cursor: 'pointer',
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -4339,13 +4345,16 @@ const App: React.FC = () => {
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  boxShadow: `0 0 8px ${currentTheme.colors.border}`
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = currentTheme.colors.primary;
+                  e.currentTarget.style.borderColor = currentTheme.colors.accent;
+                  e.currentTarget.style.boxShadow = `0 0 12px ${currentTheme.colors.accent}`;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#ddd';
+                  e.currentTarget.style.borderColor = currentTheme.colors.border;
+                  e.currentTarget.style.boxShadow = `0 0 8px ${currentTheme.colors.border}`;
                 }}
               >
                 <span style={{ maxWidth: 'calc(100% - 20px)' }}>
@@ -4655,12 +4664,12 @@ const App: React.FC = () => {
                   width: '100%',
                   minWidth: '120px',
                   maxWidth: '180px',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
+                  padding: '10px 14px',
+                  border: `1px solid ${currentTheme.colors.border}`,
+                  borderRadius: '8px',
                   textAlign: 'left',
-                  backgroundColor: '#ffffff',
-                  color: '#000000',
+                  background: currentTheme.colors.surface,
+                  color: currentTheme.colors.text,
                   cursor: 'pointer',
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -4668,13 +4677,16 @@ const App: React.FC = () => {
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  boxShadow: `0 0 8px ${currentTheme.colors.border}`
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = currentTheme.colors.primary;
+                  e.currentTarget.style.borderColor = currentTheme.colors.accent;
+                  e.currentTarget.style.boxShadow = `0 0 12px ${currentTheme.colors.accent}`;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#ddd';
+                  e.currentTarget.style.borderColor = currentTheme.colors.border;
+                  e.currentTarget.style.boxShadow = `0 0 8px ${currentTheme.colors.border}`;
                 }}
               >
                 <span style={{ maxWidth: 'calc(100% - 20px)' }}>
@@ -4816,20 +4828,30 @@ const App: React.FC = () => {
                 style={{
                   width: '100%',
                   minWidth: '120px',
-                  maxWidth: '180px', // 大约6个中文字符的宽度
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
+                  maxWidth: '180px',
+                  padding: '10px 14px',
+                  border: `1px solid ${currentTheme.colors.border}`,
+                  borderRadius: '8px',
                   textAlign: 'left',
-                  backgroundColor: '#ffffff',
-                  color: '#000000',
+                  background: currentTheme.colors.surface,
+                  color: currentTheme.colors.text,
                   cursor: 'pointer',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.2s ease',
+                  boxShadow: `0 0 8px ${currentTheme.colors.border}`
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = currentTheme.colors.accent;
+                  e.currentTarget.style.boxShadow = `0 0 12px ${currentTheme.colors.accent}`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = currentTheme.colors.border;
+                  e.currentTarget.style.boxShadow = `0 0 8px ${currentTheme.colors.border}`;
                 }}
               >
                 <span style={{ maxWidth: 'calc(100% - 20px)' }}>{filters.education.length > 0 ? filters.education.join('、') : '请选择学历'}</span>
@@ -4951,19 +4973,29 @@ const App: React.FC = () => {
                   width: '100%',
                   minWidth: '120px',
                   maxWidth: '180px',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
+                  padding: '10px 14px',
+                  border: `1px solid ${currentTheme.colors.border}`,
+                  borderRadius: '8px',
                   textAlign: 'left',
-                  backgroundColor: '#ffffff',
-                  color: '#000000',
+                  background: currentTheme.colors.surface,
+                  color: currentTheme.colors.text,
                   cursor: 'pointer',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.2s ease',
+                  boxShadow: `0 0 8px ${currentTheme.colors.border}`
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = currentTheme.colors.accent;
+                  e.currentTarget.style.boxShadow = `0 0 12px ${currentTheme.colors.accent}`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = currentTheme.colors.border;
+                  e.currentTarget.style.boxShadow = `0 0 8px ${currentTheme.colors.border}`;
                 }}
               >
                 <span style={{ maxWidth: 'calc(100% - 20px)' }}>{filters.major.length > 0 ? (filters.major.length === 1 ? filters.major[0] : `已选 ${filters.major.length} 项`) : '请选择专业'}</span>
@@ -5143,7 +5175,16 @@ const App: React.FC = () => {
                 }
               }}
               placeholder="输入证书名称"
-              style={{ borderColor: certificateError ? '#ff6b81' : '#ddd' }}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                border: `1px solid ${certificateError ? '#ff6b81' : currentTheme.colors.border}`,
+                borderRadius: '8px',
+                background: currentTheme.colors.surface,
+                color: currentTheme.colors.text,
+                boxShadow: `0 0 8px ${currentTheme.colors.border}`,
+                transition: 'all 0.2s ease'
+              }}
             />
             {certificateError && (
               <p style={{ color: '#ff6b81', fontSize: '12px', marginTop: '5px' }}>{certificateError}</p>
