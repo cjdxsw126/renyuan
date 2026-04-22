@@ -3467,9 +3467,33 @@ const App: React.FC = () => {
           color: currentTheme.colors.primary,
           fontFamily: currentTheme.fonts.heading,
           letterSpacing: '4px',
-          margin: 0
+          margin: 0,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '15px'
         }}>
-          {currentTheme.name} // 人员筛选
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '50px',
+            height: '50px',
+            borderRadius: '50%',
+            border: `2px solid ${currentTheme.colors.primary}`,
+            background: currentTheme.colors.surface,
+            fontSize: '14px',
+            fontWeight: 'bold',
+            boxShadow: `0 0 10px ${currentTheme.colors.glow || currentTheme.colors.primary}40`
+          }}>
+            {currentTheme.id === 'lighthouse' ? '灯塔' : currentTheme.id === 'chimera' ? '生态' : currentTheme.id === 'mana' ? '玛娜' : '经典'}
+          </span>
+          <span>
+            {currentTheme.name}
+            <span style={{ color: currentTheme.colors.textSecondary, margin: '0 8px' }}>//</span>
+            <span style={{ fontSize: '20px', color: currentTheme.colors.text }}>人员筛选系统</span>
+            <span style={{ color: currentTheme.colors.textSecondary, margin: '0 8px' }}>//</span>
+            <span style={{ fontSize: '18px', letterSpacing: '2px' }}>PERSONNEL FILTER</span>
+          </span>
         </h1>
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
           {/* 当前用户信息展示 */}
