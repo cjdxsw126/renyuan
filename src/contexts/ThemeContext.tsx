@@ -17,13 +17,24 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const currentTheme = getTheme(themeId);
 
   const setTheme = (newThemeId: ThemeType) => {
+    console.log('ThemeContext: setTheme called with', newThemeId, 'current theme is', themeId);
+    if (newThemeId === themeId) {
+      console.log('ThemeContext: Same theme, skipping');
+      return;
+    }
+    
     setIsThemeLoading(true);
     setThemeId(newThemeId);
     
     // Apply theme to document immediately
     applyThemeToDocument(newThemeId);
     
-    setTimeout(() => setIsThemeLoading(false), 300);
+    console.log('ThemeContext: Theme changed to', newThemeId);
+    
+    // Force a small delay to show loading state
+    setTimeout(() => {
+      setIsThemeLoading(false);
+    }, 300);
   };
 
   const applyThemeToDocument = (themeId: ThemeType) => {

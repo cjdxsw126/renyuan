@@ -8,6 +8,7 @@ export const ThemeSwitcher: React.FC = () => {
   const themes = getAllThemes();
 
   const handleThemeChange = (newThemeId: ThemeType) => {
+    console.log('ThemeSwitcher: Changing theme to', newThemeId);
     setTheme(newThemeId);
     setIsOpen(false);
   };
