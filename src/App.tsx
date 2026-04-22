@@ -5564,7 +5564,7 @@ const App: React.FC = () => {
               </div>
               {people.length > 0 && (
                 <div style={{ marginTop: '16px' }}>
-                  <h4>完整数据查阅</h4>
+                  <h4 style={{ color: currentTheme.colors.primary }}>完整数据查阅</h4>
                   <div style={{
                     maxHeight: '400px',
                     overflowY: 'auto',
@@ -5575,20 +5575,20 @@ const App: React.FC = () => {
                   }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
-                        <tr style={{ backgroundColor: currentTheme.colors.border }}>
-                          <th style={{ padding: '8px', textAlign: 'center', border: `1px solid ${currentTheme.colors.border}`, width: '50px' }}>
+                        <tr style={{ backgroundColor: currentTheme.colors.primary }}>
+                          <th style={{ padding: '8px', textAlign: 'center', border: `1px solid ${currentTheme.colors.border}`, width: '50px', color: '#ffffff' }}>
                             <input
                               type="checkbox"
                               checked={people.length > 0 && selectedPeople.length === people.length}
                               onChange={(e) => handleSelectAll(e.target.checked)}
                             />
                           </th>
-                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>工号</th>
-                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>姓名</th>
-                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>年龄</th>
-                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>学历</th>
-                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>证书</th>
-                          <th style={{ padding: '8px', textAlign: 'center', border: `1px solid ${currentTheme.colors.border}`, width: '80px' }}>操作</th>
+                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>工号</th>
+                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>姓名</th>
+                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>年龄</th>
+                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>学历</th>
+                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>证书</th>
+                          <th style={{ padding: '8px', textAlign: 'center', border: `1px solid ${currentTheme.colors.border}`, width: '80px', color: '#ffffff', fontWeight: 'bold' }}>操作</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -5605,11 +5605,11 @@ const App: React.FC = () => {
                             setCurrentPage(validPage);
                           }
 
-                          return paginatedData.map((person) => {
+                          return paginatedData.map((person, index) => {
                             const enriched = (person as any)._certDisplay !== undefined ? person as EnrichedPerson : enrichPersonData(person);
 
                             return (
-                              <tr key={person.id} style={{ backgroundColor: '#ffffff' }}>
+                              <tr key={person.id} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }}>
                                 <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, textAlign: 'center' }}>
                                   <input
                                     type="checkbox"
@@ -5617,11 +5617,11 @@ const App: React.FC = () => {
                                     onChange={() => handlePersonSelect(person.id)}
                                   />
                                 </td>
-                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}` }}>{person.employeeId || '-'}</td>
-                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}` }}>{person.name || '-'}</td>
-                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}` }}>{getPersonAge(person) || '-'}</td>
-                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}` }}>{person.education || '-'}</td>
-                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}` }}>
+                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>{person.employeeId || '-'}</td>
+                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>{person.name || '-'}</td>
+                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>{getPersonAge(person) || '-'}</td>
+                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>{person.education || '-'}</td>
+                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>
                                   {enriched._certDisplay || '无'}
                                 </td>
                                 <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, textAlign: 'center' }}>
@@ -5720,19 +5720,19 @@ const App: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="card">
-          <h2>查询结果</h2>
+        <div className="card" style={{ border: `1px solid ${currentTheme.colors.border}` }}>
+          <h2 style={{ color: currentTheme.colors.primary }}>查询结果</h2>
           {filteredPeople.length > 0 ? (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ backgroundColor: currentTheme.colors.border }}>
-                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>工号</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>姓名</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>年龄</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>学历</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>专业</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}` }}>证书</th>
+                  <tr style={{ backgroundColor: currentTheme.colors.primary }}>
+                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>工号</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>姓名</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>年龄</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>学历</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>专业</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>证书</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -5749,17 +5749,17 @@ const App: React.FC = () => {
                       setFilteredCurrentPage(validPage);
                     }
 
-                    return paginatedData.map((person) => {
+                    return paginatedData.map((person, index) => {
                       const enriched = (person as any)._certDisplay !== undefined ? person as EnrichedPerson : enrichPersonData(person, filters.certificate);
 
                       return (
-                        <tr key={person.id} style={{ backgroundColor: '#ffffff' }}>
-                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}` }}>{person.employeeId || '-'}</td>
-                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}` }}>{person.name || '-'}</td>
-                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}` }}>{getPersonAge(person) || '-'}</td>
-                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}` }}>{person.education || '-'}</td>
-                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}` }}>{person.major || '-'}</td>
-                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}` }}>
+                        <tr key={person.id} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }}>
+                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>{person.employeeId || '-'}</td>
+                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>{person.name || '-'}</td>
+                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>{getPersonAge(person) || '-'}</td>
+                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>{person.education || '-'}</td>
+                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>{person.major || '-'}</td>
+                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>
                             {enriched._certDisplay || '无'}
                           </td>
                         </tr>
@@ -5770,7 +5770,7 @@ const App: React.FC = () => {
               </table>
             </div>
           ) : (
-            <p style={{ textAlign: 'center', padding: '20px' }}>没有找到匹配的人员</p>
+            <p style={{ textAlign: 'center', padding: '20px', color: '#666' }}>没有找到匹配的人员</p>
           )}
           {/* 筛选结果分页控件 */}
           {filteredPeople.length > 0 && (
