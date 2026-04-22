@@ -10,13 +10,8 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const THEME_STORAGE_KEY = 'linglong-theme';
-
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [themeId, setThemeId] = useState<ThemeType>(() => {
-    const saved = localStorage.getItem(THEME_STORAGE_KEY);
-    return (saved as ThemeType) || defaultTheme;
-  });
+  const [themeId, setThemeId] = useState<ThemeType>(defaultTheme);
   const [isThemeLoading, setIsThemeLoading] = useState(false);
 
   const currentTheme = getTheme(themeId);
@@ -24,9 +19,8 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const setTheme = (newThemeId: ThemeType) => {
     setIsThemeLoading(true);
     setThemeId(newThemeId);
-    localStorage.setItem(THEME_STORAGE_KEY, newThemeId);
     
-    // Apply theme to document
+    // Apply theme to document immediately
     applyThemeToDocument(newThemeId);
     
     setTimeout(() => setIsThemeLoading(false), 300);
