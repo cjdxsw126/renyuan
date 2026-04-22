@@ -47,7 +47,8 @@ const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  return 'https://xuanren-1.onrender.com/api';
+  // 默认使用本地后端
+  return 'http://localhost:3001/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
