@@ -3189,11 +3189,6 @@ const App: React.FC = () => {
       {currentTheme.effects.particles && <div className="particles-container" id="particles" />}
       
       <div className="container" style={{ position: 'relative', zIndex: 10 }}>
-        {/* 主题切换按钮 */}
-        <div style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 100 }}>
-          <ThemeSwitcher />
-        </div>
-
       {/* 自定义弹框 */}
       {showAlert && (
         <div style={{
@@ -3458,8 +3453,24 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
-      <div className="header">
-        <h1>人员筛选平台</h1>
+      <div className="header" style={{ 
+        borderBottom: `1px solid ${currentTheme.colors.border}`,
+        padding: '20px 0',
+        marginBottom: '30px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <h1 style={{
+          fontSize: '28px',
+          fontWeight: 700,
+          color: currentTheme.colors.primary,
+          fontFamily: currentTheme.fonts.heading,
+          letterSpacing: '4px',
+          margin: 0
+        }}>
+          {currentTheme.name} // 人员筛选
+        </h1>
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
           {/* 当前用户信息展示 */}
           {isLoggedIn && (
@@ -3468,20 +3479,20 @@ const App: React.FC = () => {
               alignItems: 'center',
               gap: '10px',
               padding: '6px 12px',
-              backgroundColor: '#f8f9fa',
+              background: currentTheme.colors.surface,
               borderRadius: '20px',
-              border: '1px solid #e0e0e0'
+              border: `1px solid ${currentTheme.colors.border}`
             }}>
               {/* 用户头像 */}
               <div style={{
                 width: '32px',
                 height: '32px',
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.accent})`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'white',
+                color: currentTheme.colors.background,
                 fontWeight: 'bold',
                 fontSize: '14px'
               }}>
@@ -3489,10 +3500,10 @@ const App: React.FC = () => {
               </div>
               {/* 用户信息 */}
               <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3 }}>
-                <span style={{ fontSize: '14px', fontWeight: '600', color: '#333' }}>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: currentTheme.colors.text }}>
                   {username || '用户'}
                 </span>
-                <span style={{ fontSize: '11px', color: '#666' }}>
+                <span style={{ fontSize: '11px', color: currentTheme.colors.textSecondary }}>
                   {userRole === 'admin' ? '管理员' : '成员'}
                 </span>
               </div>
@@ -3507,11 +3518,61 @@ const App: React.FC = () => {
                 style={{ display: 'none' }}
                 id="excel-upload"
               />
-              <button type="button" onClick={() => document.getElementById('excel-upload')?.click()} disabled={uploading}>
+              <button 
+                type="button" 
+                onClick={() => document.getElementById('excel-upload')?.click()} 
+                disabled={uploading}
+                style={{
+                  padding: '10px 20px',
+                  background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.accent})`,
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: currentTheme.colors.background,
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: uploading ? 'not-allowed' : 'pointer',
+                  opacity: uploading ? 0.6 : 1,
+                  transition: 'all 0.3s',
+                  fontFamily: currentTheme.fonts.body,
+                }}
+                onMouseEnter={(e) => {
+                  if (!uploading) {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = `0 4px 15px ${currentTheme.colors.primary}50`;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
                 {uploading ? '上传中...' : '导入文件'}
               </button>
               {dataSets.length > 0 && (
-                <button type="button" onClick={() => setShowDataSetModal(true)}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowDataSetModal(true)}
+                  style={{
+                    padding: '10px 20px',
+                    background: 'transparent',
+                    border: `1px solid ${currentTheme.colors.primary}`,
+                    borderRadius: '6px',
+                    color: currentTheme.colors.primary,
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.3s',
+                    fontFamily: currentTheme.fonts.body,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = currentTheme.colors.primary;
+                    e.currentTarget.style.color = currentTheme.colors.background;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = currentTheme.colors.primary;
+                  }}
+                >
                   切换数据集
                 </button>
               )}
@@ -3544,11 +3605,60 @@ const App: React.FC = () => {
             </div>
           )}
           {modules.adminPanel && (userRole === 'admin') && (
-            <button type="button" onClick={() => setShowAdminPanel(!showAdminPanel)}>
+            <button 
+              type="button" 
+              onClick={() => setShowAdminPanel(!showAdminPanel)}
+              style={{
+                padding: '10px 20px',
+                background: 'transparent',
+                border: `1px solid ${currentTheme.colors.primary}`,
+                borderRadius: '6px',
+                color: currentTheme.colors.primary,
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.3s',
+                fontFamily: currentTheme.fonts.body,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = currentTheme.colors.primary;
+                e.currentTarget.style.color = currentTheme.colors.background;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = currentTheme.colors.primary;
+              }}
+            >
               {showAdminPanel ? '返回筛选' : '后台管理'}
             </button>
           )}
-          <button onClick={handleLogout}>登出</button>
+          <button 
+            onClick={handleLogout}
+            style={{
+              padding: '10px 20px',
+              background: currentTheme.colors.danger,
+              border: 'none',
+              borderRadius: '6px',
+              color: '#fff',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.3s',
+              fontFamily: currentTheme.fonts.body,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = `0 4px 15px ${currentTheme.colors.danger}50`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            登出
+          </button>
+          {/* 主题切换按钮 */}
+          <ThemeSwitcher />
         </div>
       </div>
 
