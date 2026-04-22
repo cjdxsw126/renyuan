@@ -29,10 +29,12 @@ export const ThemeSwitcher: React.FC = () => {
   };
 
   return (
-    <div className="theme-switcher">
+    <div style={{ position: 'relative' }}>
       <button
-        className="theme-switcher-button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          console.log('ThemeSwitcher: Button clicked, current isOpen:', isOpen);
+          setIsOpen(!isOpen);
+        }}
         style={{
           background: 'transparent',
           border: `1px solid ${currentTheme.colors.primary}`,
@@ -46,6 +48,7 @@ export const ThemeSwitcher: React.FC = () => {
           alignItems: 'center',
           gap: '8px',
           transition: 'all 0.3s',
+          zIndex: 100,
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.background = currentTheme.colors.primary;
@@ -62,100 +65,83 @@ export const ThemeSwitcher: React.FC = () => {
       </button>
 
       {isOpen && (
-        <>
-          <div
-            className="theme-switcher-overlay"
-            onClick={() => setIsOpen(false)}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 999,
-            }}
-          />
-          <div
-            className="theme-switcher-dropdown"
-            style={{
-              position: 'absolute',
-              top: '100%',
-              right: 0,
-              marginTop: '8px',
-              background: currentTheme.colors.surface,
-              border: `1px solid ${currentTheme.colors.border}`,
-              borderRadius: '8px',
-              padding: '8px',
-              minWidth: '200px',
-              zIndex: 1000,
-              boxShadow: `0 4px 20px rgba(0,0,0,0.3)`,
-            }}
-          >
-            {themes.map((theme) => (
-              <button
-                key={theme.id}
-                className={`theme-option ${theme.id === themeId ? 'active' : ''}`}
-                onClick={() => handleThemeChange(theme.id)}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  background: theme.id === themeId 
-                    ? `${theme.colors.primary}20` 
-                    : 'transparent',
-                  border: 'none',
-                  borderRadius: '4px',
-                  color: theme.id === themeId 
-                    ? theme.colors.primary 
-                    : theme.colors.text,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  fontFamily: theme.fonts.body,
-                  fontSize: '13px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  transition: 'all 0.2s',
-                  marginBottom: '4px',
-                }}
-                onMouseEnter={(e) => {
-                  if (theme.id !== themeId) {
-                    e.currentTarget.style.background = `${theme.colors.primary}10`;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (theme.id !== themeId) {
-                    e.currentTarget.style.background = 'transparent';
-                  }
-                }}
-              >
-                <span style={{ 
-                  fontSize: '20px',
-                  color: theme.colors.primary,
+        <div
+          style={{
+            position: 'absolute',
+            top: '100%',
+            right: 0,
+            marginTop: '8px',
+            background: currentTheme.colors.surface,
+            border: `1px solid ${currentTheme.colors.border}`,
+            borderRadius: '8px',
+            padding: '8px',
+            minWidth: '200px',
+            zIndex: 1000,
+            boxShadow: `0 4px 20px rgba(0,0,0,0.3)`,
+          }}
+        >
+          {themes.map((theme) => (
+            <button
+              key={theme.id}
+              onClick={() => handleThemeChange(theme.id)}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                background: theme.id === themeId 
+                  ? `${theme.colors.primary}20` 
+                  : 'transparent',
+                border: 'none',
+                borderRadius: '4px',
+                color: theme.id === themeId 
+                  ? theme.colors.primary 
+                  : theme.colors.text,
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontFamily: theme.fonts.body,
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                transition: 'all 0.2s',
+                marginBottom: '4px',
+              }}
+              onMouseEnter={(e) => {
+                if (theme.id !== themeId) {
+                  e.currentTarget.style.background = `${theme.colors.primary}10`;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (theme.id !== themeId) {
+                  e.currentTarget.style.background = 'transparent';
+                }
+              }}
+            >
+              <span style={{ 
+                fontSize: '20px',
+                color: theme.colors.primary,
+              }}>
+                {getThemeIcon(theme.id)}
+              </span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600 }}>{theme.name}</div>
+                <div style={{ 
+                  fontSize: '11px', 
+                  color: theme.colors.textSecondary,
+                  marginTop: '2px',
                 }}>
-                  {getThemeIcon(theme.id)}
-                </span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>{theme.name}</div>
-                  <div style={{ 
-                    fontSize: '11px', 
-                    color: theme.colors.textSecondary,
-                    marginTop: '2px',
-                  }}>
-                    {theme.description}
-                  </div>
+                  {theme.description}
                 </div>
-                {theme.id === themeId && (
-                  <span style={{ color: theme.colors.primary }}>✓</span>
-                )}
-              </button>
-            ))}
-          </div>
-        </>
+              </div>
+              {theme.id === themeId && (
+                <span style={{ color: theme.colors.primary }}>✓</span>
+              )}
+            </button>
+          ))}
+        </div>
       )}
 
       {isThemeLoading && (
         <div
-          className="theme-loading"
           style={{
             position: 'fixed',
             top: 0,
