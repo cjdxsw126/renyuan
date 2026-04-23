@@ -4067,6 +4067,12 @@ const App: React.FC = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleLogin(e as any);
+                  }
+                }}
                 required
                 style={{
                   width: '100%',
