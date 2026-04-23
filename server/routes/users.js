@@ -113,7 +113,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, password, role, enabled } = req.body;
+    const { username, password, role, enabled, avatar } = req.body;
 
     // 检查用户是否存在
     const existingUser = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
@@ -157,6 +157,12 @@ router.put('/:id', async (req, res) => {
     if (enabled !== undefined) {
       updates.push(`enabled = $${paramIndex}`);
       params.push(enabled ? 1 : 0);
+      paramIndex++;
+    }
+
+    if (avatar !== undefined) {
+      updates.push(`avatar = $${paramIndex}`);
+      params.push(avatar);
       paramIndex++;
     }
 

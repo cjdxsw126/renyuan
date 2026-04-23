@@ -27,6 +27,8 @@ app.use('/api/datasets', datasetRoutes);
 app.use('/api/persons', personRoutes);
 app.use('/api/ai', aiRoutes);
 
+
+
 // 健康检查
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
@@ -46,10 +48,19 @@ async function initDatabase() {
         role TEXT NOT NULL,
         enabled INTEGER NOT NULL DEFAULT 1,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        last_password_change TIMESTAMP
+        last_password_change TIMESTAMP,
+        avatar TEXT
       )
     `);
     console.log('✅ 用户表 (users) 就绪');
+    
+    // 检查并添加 avatar 列（兼容已有表）
+    try {
+      await pool.query(`ALTER TABLE users ADD COLUMN avatar TEXT`);
+      console.log('✅ 已添加 avatar 列到用户表');
+    } catch (e) {
+      // 列已存在，忽略错误
+    }
 
     // 创建权限表
     await pool.query(`

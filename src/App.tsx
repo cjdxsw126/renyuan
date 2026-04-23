@@ -1,87 +1,1170 @@
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import { storageService, User, Person, DataSet } from './storageService';
+import { storageService } from './storageService';
 import { useTheme } from './contexts/ThemeContext';
-import { ThemeSwitcher } from './components/ThemeSwitcher';
+import { getAllThemes, ThemeType } from './themes';
+import { SimpleThemeSwitcher } from './components/SimpleThemeSwitcher';
+import { FilterState, User, Person, DataSet } from './types';
+import {
+  EXCLUDED_CERT_KEYWORDS,
+  COMPREHENSIVE_CERT_MAPPINGS,
+  HIDDEN_COLUMNS,
+  BASE_CERT_CATEGORIES,
+  PRESET_AVATARS
+} from './config/constants';
+import { getPersonAge } from './utils/helpers';
 
-interface FilterState {
-  name: string;
-  ageMin: number;
-  ageMax: number;
-  education: string[];
-  major: string[];
-  certificate: string;
-  employeeId: string;
-  tenureMin: number;
-  tenureMax: number;
-  graduationTenureMin: number;
-  graduationTenureMax: number;
+// 重新导出类型供其他组件使用
+export type { FilterState, User, Person, DataSet };
+
+// 常量已在config/constants.ts中定义
+const hiddenColumns = HIDDEN_COLUMNS;
+
+// 注意：SimpleThemeSwitcher组件已提取到 ./components/SimpleThemeSwitcher.tsx
+// 注意：PRESET_AVATARS常量已提取到 ./config/constants.ts
+
+// 头像选择器组件
+interface AvatarSelectorProps {
+  currentAvatar: string;
+  onSelect: (avatar: string) => void;
+  onClose: () => void;
 }
 
-const EXCLUDED_CERT_KEYWORDS = ['教育形式', '普通高等教育', '成人教育', '自学考试', '非全日制', '全日制', '函授', '网络教育'];
+const AvatarSelector: React.FC<AvatarSelectorProps> = ({ currentAvatar, onSelect, onClose }) => {
+  const { currentTheme } = useTheme();
+  const [selectedAvatar, setSelectedAvatar] = useState(currentAvatar);
+  const [customImage, setCustomImage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'preset' | 'custom'>('preset');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-const COMPREHENSIVE_CERT_MAPPINGS: { [key: string]: string } = {
-  '软考': '软考体系', '软考体系': '软考体系',
-  '系统分析师': '软考体系', '信息系统项目管理师': '软考体系',
-  '系统集成': '软考体系', '系统集成项目经理': '软考体系', '系统集成项目管理工程师': '软考体系',
-  '系统架构师': '软考体系', '系统架构设计师': '软考体系',
-  '网络规划设计师': '软考体系', '网络工程师': '软考体系',
-  '高级工程师': '其他 IT 认证',
-  '工信部': '工信部其他认证', '工信部其他认证': '工信部其他认证',
-  '通信': '工信部其他认证', '网络安全': '工信部其他认证',
-  '阿里云': '阿里云、腾讯云', '阿里云、腾讯云': '阿里云、腾讯云', '腾讯云': '阿里云、腾讯云',
-  '云认证': '阿里云、腾讯云', '云架构师': '阿里云、腾讯云', '云计算': '阿里云、腾讯云',
-  '华为': '华为、华三、CISP、ITSS', '华三': '华为、华三、CISP、ITSS',
-  'h3c': '华为、华三、CISP、ITSS', 'H3C': '华为、华三、CISP、ITSS',
-  'CISP': '华为、华三、CISP、ITSS', 'cisp': '华为、华三、CISP、ITSS',
-  'ITSS': '华为、华三、CISP、ITSS',
-  'ccna': '思科、甲骨文、微软、EXIN、Linux', 'ccnp': '思科、甲骨文、微软、EXIN、Linux', 'ccie': '思科、甲骨文、微软、EXIN、Linux',
-  'CCNA': '思科、甲骨文、微软、EXIN、Linux', 'CCNP': '思科、甲骨文、微软、EXIN、Linux', 'CCIE': '思科、甲骨文、微软、EXIN、Linux',
-  'ITIL': 'ITIL、CKA/CKS、Vmware、Redhead', 'CKA': 'ITIL、CKA/CKS、Vmware、Redhead',
-  'CKS': 'ITIL、CKA/CKS、Vmware、Redhead', 'Vmware': 'ITIL、CKA/CKS、Vmware、Redhead',
-  'Redhead': 'ITIL、CKA/CKS、Vmware、Redhead', 'redhat': 'ITIL、CKA/CKS、Vmware、Redhead',
-  '红帽': 'ITIL、CKA/CKS、Vmware、Redhead', '红帽认证': 'ITIL、CKA/CKS、Vmware、Redhead',
-  'RHCE': 'ITIL、CKA/CKS、Vmware、Redhead', 'RHCA': 'ITIL、CKA/CKS、Vmware、Redhead',
-  '思科': '思科、甲骨文、微软、EXIN、Linux', 'cisco': '思科、甲骨文、微软、EXIN、Linux',
-  'Cisco': '思科、甲骨文、微软、EXIN、Linux', 'Cisco思科': '思科、甲骨文、微软、EXIN、Linux',
-  '甲骨文': '思科、甲骨文、微软、EXIN、Linux', 'oracle': '思科、甲骨文、微软、EXIN、Linux',
-  'Oracle': '思科、甲骨文、微软、EXIN、Linux', 'ORACLE': '思科、甲骨文、微软、EXIN、Linux',
-  '微软': '思科、甲骨文、微软、EXIN、Linux', '微软工程师': '思科、甲骨文、微软、EXIN、Linux',
-  'EXIN': '思科、甲骨文、微软、EXIN、Linux', 'exin': '思科、甲骨文、微软、EXIN、Linux',
-  'Linux': '思科、甲骨文、微软、EXIN、Linux', 'linux': '思科、甲骨文、微软、EXIN、Linux',
-  'pmi': 'PMP', 'PMI': 'PMP',
-  'PMP': 'PMP', 'pmp': 'PMP',
-  '全媒体运营师': '全媒体运营师、NDPD等运营及产品相关计算机等级',
-  'NDPD': '全媒体运营师、NDPD等运营及产品相关计算机等级',
-  'ndpd': '全媒体运营师、NDPD等运营及产品相关计算机等级',
-  '天宫认证': '全媒体运营师、NDPD等运营及产品相关计算机等级',
-  '产品体验师': '全媒体运营师、NDPD等运营及产品相关计算机等级',
-  '产品体验': '全媒体运营师、NDPD等运营及产品相关计算机等级',
-  '计算机等级': '全媒体运营师、NDPD等运营及产品相关计算机等级',
-  '其他IT认证': '其他 IT 认证', '其他 it 认证': '其他 IT 认证',
-  '其他 IT 认证': '其他 IT 认证', '其他认证': '其他认证', '其他资质': '其他认证',
-  '财会类': '其他认证', '人力资源类': '其他认证', '教育类': '其他认证', '语言类': '其他认证'
+  // 处理文件上传
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('图片大小不能超过5MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        setCustomImage(result);
+        setSelectedAvatar(result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // 判断是否是自定义图片
+  const isCustomImage = selectedAvatar && selectedAvatar.startsWith('data:image');
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 10000,
+      padding: '20px'
+    }}>
+      <div style={{
+        backgroundColor: currentTheme.colors.surface,
+        borderRadius: '16px',
+        padding: '24px',
+        maxWidth: '450px',
+        width: '100%',
+        maxHeight: '90vh',
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: `0 8px 32px rgba(0, 0, 0, 0.4), 0 0 16px ${currentTheme.colors.primary}20`,
+        border: `1px solid ${currentTheme.colors.border}`
+      }}>
+        {/* 标题 */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '20px',
+          paddingBottom: '15px',
+          borderBottom: `1px solid ${currentTheme.colors.border}`,
+          flexShrink: 0
+        }}>
+          <h3 style={{
+            margin: 0,
+            color: currentTheme.colors.primary,
+            fontSize: '20px',
+            fontWeight: 600
+          }}>
+            选择头像
+          </h3>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '24px',
+              cursor: 'pointer',
+              color: currentTheme.colors.textSecondary,
+              transition: 'color 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = currentTheme.colors.primary}
+            onMouseLeave={(e) => e.currentTarget.style.color = currentTheme.colors.textSecondary}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* 当前头像预览 */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          marginBottom: '20px',
+          flexShrink: 0
+        }}>
+          <div style={{
+            width: '100px',
+            height: '100px',
+            borderRadius: '50%',
+            background: isCustomImage
+              ? 'transparent'
+              : selectedAvatar
+                ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                : `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.accent})`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '48px',
+            boxShadow: `0 4px 15px rgba(0,0,0,0.3)`,
+            overflow: 'hidden',
+            border: `3px solid ${currentTheme.colors.primary}`
+          }}>
+            {isCustomImage ? (
+              <img 
+                src={selectedAvatar} 
+                alt="预览" 
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              selectedAvatar || '👤'
+            )}
+          </div>
+        </div>
+
+        {/* 标签切换 */}
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          marginBottom: '16px',
+          flexShrink: 0
+        }}>
+          <button
+            onClick={() => setActiveTab('preset')}
+            style={{
+              flex: 1,
+              padding: '10px',
+              background: activeTab === 'preset' ? currentTheme.colors.primary : 'transparent',
+              border: `1px solid ${currentTheme.colors.primary}`,
+              borderRadius: '8px',
+              color: activeTab === 'preset' ? currentTheme.colors.background : currentTheme.colors.primary,
+              cursor: 'pointer',
+              fontSize: '14px',
+              transition: 'all 0.2s'
+            }}
+          >
+            预设头像
+          </button>
+          <button
+            onClick={() => setActiveTab('custom')}
+            style={{
+              flex: 1,
+              padding: '10px',
+              background: activeTab === 'custom' ? currentTheme.colors.primary : 'transparent',
+              border: `1px solid ${currentTheme.colors.primary}`,
+              borderRadius: '8px',
+              color: activeTab === 'custom' ? currentTheme.colors.background : currentTheme.colors.primary,
+              cursor: 'pointer',
+              fontSize: '14px',
+              transition: 'all 0.2s'
+            }}
+          >
+            自定义上传
+          </button>
+        </div>
+
+        {/* 内容区域 */}
+        <div style={{
+          flex: 1,
+          overflow: 'auto',
+          minHeight: 0,
+          marginBottom: '16px'
+        }}>
+          {activeTab === 'preset' ? (
+            /* 预设头像网格 */
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(5, 1fr)',
+              gap: '10px'
+            }}>
+              {PRESET_AVATARS.map((avatar, index) => (
+                <button
+                  key={index}
+                  onClick={() => setSelectedAvatar(avatar)}
+                  style={{
+                    aspectRatio: '1',
+                    borderRadius: '12px',
+                    border: `2px solid ${selectedAvatar === avatar ? currentTheme.colors.primary : currentTheme.colors.border}`,
+                    background: selectedAvatar === avatar
+                      ? `${currentTheme.colors.primary}20`
+                      : currentTheme.colors.dropdownButtonBg,
+                    fontSize: '24px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: 0,
+                    minHeight: 0
+                  }}
+                  onMouseEnter={(e) => {
+                    if (selectedAvatar !== avatar) {
+                      e.currentTarget.style.background = `${currentTheme.colors.primary}10`;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedAvatar !== avatar) {
+                      e.currentTarget.style.background = currentTheme.colors.dropdownButtonBg;
+                    }
+                  }}
+                >
+                  {avatar}
+                </button>
+              ))}
+            </div>
+          ) : (
+            /* 自定义上传区域 */
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/*"
+                style={{ display: 'none' }}
+              />
+              
+              {/* 上传按钮 */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  padding: '40px 20px',
+                  background: currentTheme.colors.dropdownButtonBg,
+                  border: `2px dashed ${currentTheme.colors.border}`,
+                  borderRadius: '12px',
+                  color: currentTheme.colors.textSecondary,
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = currentTheme.colors.primary;
+                  e.currentTarget.style.color = currentTheme.colors.primary;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = currentTheme.colors.border;
+                  e.currentTarget.style.color = currentTheme.colors.textSecondary;
+                }}
+              >
+                <span style={{ fontSize: '32px' }}>📷</span>
+                <span>点击上传图片</span>
+                <span style={{ fontSize: '12px' }}>支持 JPG、PNG 格式，最大 5MB</span>
+              </button>
+
+              {/* 已上传图片预览 */}
+              {customImage && (
+                <div style={{
+                  padding: '16px',
+                  background: currentTheme.colors.dropdownButtonBg,
+                  borderRadius: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}>
+                    <img 
+                      src={customImage} 
+                      alt="已上传" 
+                      style={{ 
+                        width: '60px', 
+                        height: '60px', 
+                        objectFit: 'cover',
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ 
+                        color: currentTheme.colors.text,
+                        fontSize: '14px',
+                        marginBottom: '4px'
+                      }}>
+                        已选择图片
+                      </div>
+                      <div style={{ 
+                        color: currentTheme.colors.textSecondary,
+                        fontSize: '12px'
+                      }}>
+                        点击确认使用此图片
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setCustomImage(null);
+                        setSelectedAvatar('');
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        background: 'transparent',
+                        border: `1px solid ${currentTheme.colors.danger}`,
+                        borderRadius: '6px',
+                        color: currentTheme.colors.danger,
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      删除
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 清除头像选项 */}
+        <button
+          onClick={() => {
+            setSelectedAvatar('');
+            setCustomImage(null);
+          }}
+          style={{
+            width: '100%',
+            padding: '10px',
+            marginBottom: '16px',
+            background: 'transparent',
+            border: `1px dashed ${currentTheme.colors.border}`,
+            borderRadius: '8px',
+            color: currentTheme.colors.textSecondary,
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'all 0.2s',
+            flexShrink: 0
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = currentTheme.colors.primary;
+            e.currentTarget.style.color = currentTheme.colors.primary;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = currentTheme.colors.border;
+            e.currentTarget.style.color = currentTheme.colors.textSecondary;
+          }}
+        >
+          使用默认头像（首字母）
+        </button>
+
+        {/* 按钮组 */}
+        <div style={{
+          display: 'flex',
+          gap: '12px',
+          justifyContent: 'flex-end',
+          paddingTop: '16px',
+          borderTop: `1px solid ${currentTheme.colors.border}`,
+          flexShrink: 0
+        }}>
+          <button
+            onClick={onClose}
+            style={{
+              padding: '10px 20px',
+              background: 'transparent',
+              border: `1px solid ${currentTheme.colors.border}`,
+              borderRadius: '8px',
+              color: currentTheme.colors.text,
+              cursor: 'pointer',
+              fontSize: '14px',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = `${currentTheme.colors.primary}10`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            取消
+          </button>
+          <button
+            onClick={() => onSelect(selectedAvatar)}
+            style={{
+              padding: '10px 20px',
+              background: currentTheme.colors.primary,
+              border: 'none',
+              borderRadius: '8px',
+              color: currentTheme.colors.background,
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 500,
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = '0.8';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '1';
+            }}
+          >
+            确认
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
-const hiddenColumns = ['PMP取证时间', 'PMP取证年限（年）', 'PMP是否过期'];
+// 密码修改组件
+interface PasswordChangerProps {
+  username: string;
+  onClose: () => void;
+}
 
-const BASE_CERT_CATEGORIES = [
-  '软考体系', '工信部其他认证', '阿里云、腾讯云', '华为、华三、CISP、ITSS',
-  'ITIL、CKA/CKS、Vmware、Redhead', '思科、甲骨文、微软、EXIN、Linux',
-  '全媒体运营师、NDPD等运营及产品相关计算机等级', '计算机等级', '其他 IT 认证', '其他认证', 'PMP'
-];
+const PasswordChanger: React.FC<PasswordChangerProps> = ({ username, onClose }) => {
+  const { currentTheme } = useTheme();
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
-const getPersonAge = (person: any): number => {
-  if (person.age) return parseInt(String(person.age)) || 0;
-  const od = person.originalData || {};
-  for (const key of Object.keys(od)) {
-    const k = key.replace(/\s/g, '').toLowerCase();
-    if (k === '年龄' || k === 'age' || k === '周岁' || k.includes('年龄') || k.includes('周岁')) {
-      const v = parseFloat(String(od[key]));
-      if (v && v > 0 && v < 150) return v;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      setError('请填写所有字段');
+      return;
     }
-  }
-  return 0;
+
+    if (newPassword !== confirmPassword) {
+      setError('两次输入的新密码不一致');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setError('新密码长度至少为6位');
+      return;
+    }
+
+    try {
+      // 动态获取 API 基础 URL
+      const getApiBaseUrl = () => {
+        if (import.meta.env.VITE_API_URL) {
+          return import.meta.env.VITE_API_URL;
+        }
+        return 'https://xuanren-1.onrender.com/api';
+      };
+
+      const apiUrl = getApiBaseUrl();
+      console.log('正在连接服务器:', apiUrl);
+
+      // 创建 AbortController 用于超时控制
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60秒超时，给Render冷启动足够时间
+
+      // 调用后端API修改密码
+      const response = await fetch(`${apiUrl}/auth/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username,
+          oldPassword,
+          newPassword
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        setSuccess(true);
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+      } else {
+        const data = await response.json();
+        setError(data.message || '修改密码失败');
+      }
+    } catch (err: any) {
+      console.error('修改密码请求失败:', err);
+      
+      if (err.name === 'AbortError') {
+        setError('请求超时，服务器可能正在启动，请稍后重试');
+      } else if (err.message?.includes('fetch') || err.message?.includes('network') || err.message?.includes('Failed to fetch')) {
+        setError('无法连接到服务器，请检查网络连接或稍后重试（服务器可能需要30-60秒冷启动时间）');
+      } else {
+        setError('网络错误，请稍后重试');
+      }
+    }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 10000
+    }}>
+      <div style={{
+        backgroundColor: currentTheme.colors.surface,
+        borderRadius: '16px',
+        padding: '24px',
+        maxWidth: '400px',
+        width: '90%',
+        boxShadow: `0 8px 32px rgba(0, 0, 0, 0.4), 0 0 16px ${currentTheme.colors.primary}20`,
+        border: `1px solid ${currentTheme.colors.border}`
+      }}>
+        {/* 标题 */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '20px',
+          paddingBottom: '15px',
+          borderBottom: `1px solid ${currentTheme.colors.border}`
+        }}>
+          <h3 style={{
+            margin: 0,
+            color: currentTheme.colors.primary,
+            fontSize: '20px',
+            fontWeight: 600
+          }}>
+            修改密码
+          </h3>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '24px',
+              cursor: 'pointer',
+              color: currentTheme.colors.textSecondary,
+              transition: 'color 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = currentTheme.colors.primary}
+            onMouseLeave={(e) => e.currentTarget.style.color = currentTheme.colors.textSecondary}
+          >
+            ×
+          </button>
+        </div>
+
+        {success ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '20px'
+          }}>
+            <div style={{
+              fontSize: '48px',
+              marginBottom: '16px'
+            }}>✅</div>
+            <p style={{ color: currentTheme.colors.success, fontSize: '16px' }}>
+              密码修改成功！
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            {error && (
+              <div style={{
+                padding: '10px',
+                marginBottom: '16px',
+                background: `${currentTheme.colors.danger}20`,
+                border: `1px solid ${currentTheme.colors.danger}`,
+                borderRadius: '8px',
+                color: currentTheme.colors.danger,
+                fontSize: '14px'
+              }}>
+                {error}
+              </div>
+            )}
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '6px',
+                color: currentTheme.colors.text,
+                fontSize: '14px'
+              }}>
+                当前密码
+              </label>
+              <input
+                type="password"
+                value={oldPassword}
+                onChange={(e) => setOldPassword(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  border: `1px solid ${currentTheme.colors.border}`,
+                  borderRadius: '8px',
+                  background: currentTheme.colors.dropdownButtonBg,
+                  color: currentTheme.colors.text,
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+                placeholder="请输入当前密码"
+              />
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '6px',
+                color: currentTheme.colors.text,
+                fontSize: '14px'
+              }}>
+                新密码
+              </label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  border: `1px solid ${currentTheme.colors.border}`,
+                  borderRadius: '8px',
+                  background: currentTheme.colors.dropdownButtonBg,
+                  color: currentTheme.colors.text,
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+                placeholder="请输入新密码（至少6位）"
+              />
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '6px',
+                color: currentTheme.colors.text,
+                fontSize: '14px'
+              }}>
+                确认新密码
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  border: `1px solid ${currentTheme.colors.border}`,
+                  borderRadius: '8px',
+                  background: currentTheme.colors.dropdownButtonBg,
+                  color: currentTheme.colors.text,
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+                placeholder="请再次输入新密码"
+              />
+            </div>
+
+            {/* 按钮组 */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end',
+              paddingTop: '16px',
+              borderTop: `1px solid ${currentTheme.colors.border}`
+            }}>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  padding: '10px 20px',
+                  background: 'transparent',
+                  border: `1px solid ${currentTheme.colors.border}`,
+                  borderRadius: '8px',
+                  color: currentTheme.colors.text,
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = `${currentTheme.colors.primary}10`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                取消
+              </button>
+              <button
+                type="submit"
+                style={{
+                  padding: '10px 20px',
+                  background: currentTheme.colors.primary,
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: currentTheme.colors.background,
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.8';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                }}
+              >
+                确认修改
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// 用户主题下拉菜单组件
+interface UserThemeDropdownProps {
+  username: string;
+  userRole: 'admin' | 'member';
+  onLogout: () => void;
+  users: User[];
+  onUpdateUser: (user: User) => Promise<void>;
+  onShowPasswordModal: () => void;
+}
+
+const UserThemeDropdown: React.FC<UserThemeDropdownProps> = ({ username, userRole, onLogout, users, onUpdateUser, onShowPasswordModal }) => {
+  const { currentTheme, themeId, setTheme, isThemeLoading } = useTheme();
+  const [isOpen, setIsOpen] = useState(false);
+  const [showThemeSubmenu, setShowThemeSubmenu] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  
+  // 从用户数据中获取当前用户的头像
+  const currentUser = users.find(u => u.username === username);
+  const [userAvatar, setUserAvatar] = useState<string>(() => {
+    return currentUser?.avatar || '';
+  });
+  
+  // 当用户数据变化时更新头像显示
+  useEffect(() => {
+    const user = users.find(u => u.username === username);
+    if (user?.avatar) {
+      setUserAvatar(user.avatar);
+    }
+  }, [users, username]);
+  
+  const themes = getAllThemes();
+
+  // 获取主题图标
+  const getThemeIcon = (id: ThemeType) => {
+    switch (id) {
+      case 'classic': return '◎';
+      case 'lighthouse': return '◉';
+      case 'chimera': return '◈';
+      case 'mana': return '✦';
+      default: return '◎';
+    }
+  };
+
+  // 处理主题切换
+  const handleThemeChange = (newThemeId: ThemeType) => {
+    setTheme(newThemeId);
+    setShowThemeSubmenu(false);
+    setIsOpen(false);
+  };
+
+  // 点击外部关闭下拉菜单
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.user-theme-dropdown')) {
+        setIsOpen(false);
+        setShowThemeSubmenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="user-theme-dropdown" style={{ position: 'relative' }}>
+      {/* 用户头像按钮 */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          padding: '6px 12px',
+          background: currentTheme.colors.surface,
+          borderRadius: '20px',
+          border: `1px solid ${currentTheme.colors.border}`,
+          cursor: 'pointer',
+          transition: 'all 0.3s',
+        }}
+      >
+        {/* 用户头像 */}
+        <div style={{
+          width: '32px',
+          height: '32px',
+          borderRadius: '50%',
+          background: userAvatar 
+            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+            : `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.accent})`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: userAvatar ? '#fff' : currentTheme.colors.background,
+          fontWeight: 'bold',
+          fontSize: userAvatar ? '18px' : '14px'
+        }}>
+          {userAvatar || (username ? username.charAt(0).toUpperCase() : 'U')}
+        </div>
+        {/* 用户设置文字 */}
+        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3, textAlign: 'left' }}>
+          <span style={{ fontSize: '14px', fontWeight: '600', color: currentTheme.colors.text }}>
+            用户设置
+          </span>
+          <span style={{ fontSize: '11px', color: currentTheme.colors.textSecondary }}>
+            {userRole === 'admin' ? '管理员' : '成员'}
+          </span>
+        </div>
+        {/* 下拉箭头 */}
+        <span style={{ color: currentTheme.colors.textSecondary, marginLeft: '4px' }}>
+          {isOpen ? '▲' : '▼'}
+        </span>
+      </button>
+
+      {/* 下拉菜单 */}
+      {isOpen && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          right: 0,
+          marginTop: '8px',
+          background: currentTheme.colors.surface,
+          border: `1px solid ${currentTheme.colors.border}`,
+          borderRadius: '12px',
+          padding: '6px',
+          minWidth: '180px',
+          maxWidth: 'calc(100vw - 40px)',
+          zIndex: 1000,
+          boxShadow: `0 4px 20px rgba(0,0,0,0.1)`,
+          overflow: 'hidden',
+        }}>
+          {/* 用户信息头部 */}
+          <div style={{
+            padding: '12px 16px',
+            borderBottom: `1px solid ${currentTheme.colors.border}`,
+            marginBottom: '4px'
+          }}>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: currentTheme.colors.text }}>
+              {username || '用户'}
+            </div>
+            <div style={{ fontSize: '12px', color: currentTheme.colors.textSecondary, marginTop: '2px' }}>
+              {userRole === 'admin' ? '管理员' : '普通成员'}
+            </div>
+          </div>
+
+          {/* 菜单项容器 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {/* 主题设置选项 */}
+            <button
+              onClick={() => setShowThemeSubmenu(!showThemeSubmenu)}
+              style={{
+                width: '100%',
+                padding: '10px 8px',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: '8px',
+                color: currentTheme.colors.text,
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                transition: 'all 0.2s',
+                boxSizing: 'border-box',
+                boxShadow: 'none',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = `${currentTheme.colors.primary}15`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '18px', width: '20px', textAlign: 'center', color: currentTheme.colors.primary }}>
+                  {getThemeIcon(themeId)}
+                </span>
+                <span>主题设置</span>
+              </span>
+              <span style={{ color: currentTheme.colors.textSecondary, fontSize: '12px', marginLeft: '4px' }}>
+                {showThemeSubmenu ? '◀' : '▶'}
+              </span>
+            </button>
+
+            {/* 主题子菜单 */}
+            {showThemeSubmenu && (
+              <div style={{
+                marginLeft: '8px',
+                paddingLeft: '8px',
+                borderLeft: `2px solid ${currentTheme.colors.border}`,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px',
+              }}>
+                {themes.map((theme) => (
+                  <button
+                    key={theme.id}
+                    onClick={() => handleThemeChange(theme.id)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      background: theme.id === themeId
+                        ? `${currentTheme.colors.primary}15`
+                        : 'transparent',
+                      border: 'none',
+                      borderRadius: '6px',
+                      color: theme.id === themeId
+                        ? currentTheme.colors.primary
+                        : currentTheme.colors.text,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s',
+                      boxShadow: 'none',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (theme.id !== themeId) {
+                        e.currentTarget.style.background = `${currentTheme.colors.primary}10`;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (theme.id !== themeId) {
+                        e.currentTarget.style.background = 'transparent';
+                      }
+                    }}
+                  >
+                    <span style={{
+                      fontSize: '16px',
+                      width: '20px',
+                      textAlign: 'center',
+                      color: theme.colors.primary,
+                    }}>
+                      {getThemeIcon(theme.id)}
+                    </span>
+                    <span style={{ flex: 1 }}>{theme.name}</span>
+                    {theme.id === themeId && (
+                      <span style={{ color: currentTheme.colors.primary, fontSize: '12px' }}>✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* 分隔线 */}
+            <div style={{
+              borderTop: `1px solid ${currentTheme.colors.border}`,
+              margin: '4px 8px'
+            }} />
+
+            {/* 设置头像按钮 */}
+            <button
+              onClick={() => {
+                setShowAvatarModal(true);
+                setIsOpen(false);
+              }}
+              style={{
+                width: '100%',
+                padding: '10px 8px',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: '8px',
+                color: currentTheme.colors.text,
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s',
+                boxSizing: 'border-box',
+                boxShadow: 'none',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = `${currentTheme.colors.primary}15`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <span style={{ fontSize: '18px', width: '20px', textAlign: 'center' }}>🎨</span>
+              <span>设置头像</span>
+            </button>
+
+            {/* 修改密码按钮 */}
+            <button
+              onClick={() => {
+                onShowPasswordModal();
+                setIsOpen(false);
+              }}
+              style={{
+                width: '100%',
+                padding: '10px 8px',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: '8px',
+                color: currentTheme.colors.text,
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s',
+                boxSizing: 'border-box',
+                boxShadow: 'none',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = `${currentTheme.colors.primary}15`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <span style={{ fontSize: '18px', width: '20px', textAlign: 'center' }}>🔐</span>
+              <span>修改密码</span>
+            </button>
+
+            {/* 分隔线 */}
+            <div style={{
+              borderTop: `1px solid ${currentTheme.colors.border}`,
+              margin: '4px 8px'
+            }} />
+
+            {/* 登出按钮 */}
+            <button
+              onClick={() => {
+                onLogout();
+                setIsOpen(false);
+              }}
+              style={{
+                width: '100%',
+                padding: '10px 8px',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: '8px',
+                color: currentTheme.colors.danger,
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s',
+                boxSizing: 'border-box',
+                boxShadow: 'none',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = `${currentTheme.colors.danger}15`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <span style={{ fontSize: '18px', width: '20px', textAlign: 'center' }}>⏻</span>
+              <span>登出</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 头像选择模态框 */}
+      {showAvatarModal && (
+        <AvatarSelector
+          currentAvatar={userAvatar}
+          onSelect={async (avatar) => {
+            setUserAvatar(avatar);
+            // 保存到用户数据中
+            if (currentUser) {
+              const updatedUser = { ...currentUser, avatar };
+              try {
+                await onUpdateUser(updatedUser);
+              } catch (error) {
+                console.error('保存头像失败:', error);
+              }
+            }
+            setShowAvatarModal(false);
+          }}
+          onClose={() => setShowAvatarModal(false)}
+        />
+      )}
+
+      {/* 主题切换加载遮罩 */}
+      {isThemeLoading && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+        }}>
+          <div style={{
+            padding: '20px 40px',
+            background: currentTheme.colors.surface,
+            border: `1px solid ${currentTheme.colors.border}`,
+            borderRadius: '8px',
+            color: currentTheme.colors.primary,
+          }}>
+            切换主题中...
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 const COMPANY_TENURE_FIELDS = [
@@ -373,13 +1456,6 @@ const App: React.FC = () => {
   const pageSize = 50; // 每页显示条数
   const [filteredCurrentPage, setFilteredCurrentPage] = useState<number>(1);
   
-  // 密码管理相关状态
-  const [showPasswordModal, setShowPasswordModal] = useState<boolean>(false);
-  const [currentPassword, setCurrentPassword] = useState<string>('');
-  const [newPassword, setNewPassword] = useState<string>('');
-  const [confirmPassword, setConfirmPassword] = useState<string>('');
-  const [passwordError, setPasswordError] = useState<string>('');
-  
   // 权限编辑相关状态
   const [showPermissionModal, setShowPermissionModal] = useState<boolean>(false);
   const [editingPermissionsUser, setEditingPermissionsUser] = useState<User | null>(null);
@@ -439,25 +1515,75 @@ const App: React.FC = () => {
   const [currentDataSetId, setCurrentDataSetId] = useState<string | null>(null);
   const [showDataSetModal, setShowDataSetModal] = useState<boolean>(false);
   
+  // 密码修改模态框状态
+  const [showPasswordModal, setShowPasswordModal] = useState<boolean>(false);
+  
   // AI 智能搜索状态
   const [smartQuery, setSmartQuery] = useState<string>('');
   const [isSmartSearching, setIsSmartSearching] = useState<boolean>(false);
   const [aiDiagnosticInfo, setAiDiagnosticInfo] = useState<string>('');
   const [showAISettings, setShowAISettings] = useState<boolean>(false);
   const [aiProvider, setAiProvider] = useState<string>('deepseek');
-  const [aiApiKey, setAiApiKey] = useState<string>('');
-  const [aiBaseUrl, setAiBaseUrl] = useState<string>('');
-  const [aiModel, setAiModel] = useState<string>('');
+  // 为每个模型独立存储API配置
+  const [aiConfigs, setAiConfigs] = useState<{
+    deepseek: { apiKey: string; baseUrl: string; model: string };
+    qwen: { apiKey: string; baseUrl: string; model: string };
+    doubao: { apiKey: string; baseUrl: string; model: string };
+    custom: { apiKey: string; baseUrl: string; model: string };
+  }>({
+    deepseek: { apiKey: '', baseUrl: '', model: '' },
+    qwen: { apiKey: '', baseUrl: '', model: '' },
+    doubao: { apiKey: '', baseUrl: '', model: '' },
+    custom: { apiKey: '', baseUrl: '', model: '' }
+  });
   const [aiConfigSaved, setAiConfigSaved] = useState<boolean>(false);
+
+  // 获取当前选中模型的配置
+  const currentAiConfig = aiConfigs[aiProvider as keyof typeof aiConfigs];
+  const aiApiKey = currentAiConfig.apiKey;
+  const aiBaseUrl = currentAiConfig.baseUrl;
+  const aiModel = currentAiConfig.model;
+
+  // 更新当前模型的配置
+  const setAiApiKey = (value: string) => {
+    setAiConfigs(prev => ({
+      ...prev,
+      [aiProvider]: { ...prev[aiProvider as keyof typeof prev], apiKey: value }
+    }));
+  };
+  const setAiBaseUrl = (value: string) => {
+    setAiConfigs(prev => ({
+      ...prev,
+      [aiProvider]: { ...prev[aiProvider as keyof typeof prev], baseUrl: value }
+    }));
+  };
+  const setAiModel = (value: string) => {
+    setAiConfigs(prev => ({
+      ...prev,
+      [aiProvider]: { ...prev[aiProvider as keyof typeof prev], model: value }
+    }));
+  };
 
   // 从持久化存储加载AI配置（仅在挂载时执行一次）
   useEffect(() => {
     const savedConfig = storageService.getAIConfig();
     if (savedConfig) {
       if (savedConfig.provider) setAiProvider(savedConfig.provider);
-      if (savedConfig.apiKey) setAiApiKey(savedConfig.apiKey);
-      if (savedConfig.baseUrl) setAiBaseUrl(savedConfig.baseUrl);
-      if (savedConfig.model) setAiModel(savedConfig.model);
+      // 兼容旧格式和新格式
+      if (savedConfig.aiConfigs) {
+        setAiConfigs(savedConfig.aiConfigs);
+      } else if (savedConfig.apiKey) {
+        // 旧格式：只有一个apiKey，迁移到新格式
+        const oldProvider = savedConfig.provider || 'deepseek';
+        setAiConfigs(prev => ({
+          ...prev,
+          [oldProvider]: {
+            apiKey: savedConfig.apiKey || '',
+            baseUrl: savedConfig.baseUrl || '',
+            model: savedConfig.model || ''
+          }
+        }));
+      }
       setAiConfigSaved(true);
     }
   }, []);
@@ -465,12 +1591,19 @@ const App: React.FC = () => {
   // 防抖自动保存AI配置
   useEffect(() => {
     const timer = setTimeout(() => {
-      const config = { provider: aiProvider, apiKey: aiApiKey, baseUrl: aiBaseUrl, model: aiModel };
+      const config = { 
+        provider: aiProvider, 
+        aiConfigs,
+        // 同时保存当前选中的配置，便于快速访问
+        apiKey: aiApiKey,
+        baseUrl: aiBaseUrl,
+        model: aiModel
+      };
       storageService.saveAIConfig(config);
       setAiConfigSaved(true);
     }, 800);
     return () => clearTimeout(timer);
-  }, [aiProvider, aiApiKey, aiBaseUrl, aiModel]);
+  }, [aiProvider, aiConfigs, aiApiKey, aiBaseUrl, aiModel]);
 
   // 记录日志
   const addLog = (message: string) => {
@@ -482,66 +1615,7 @@ const App: React.FC = () => {
   // 密码验证函数（用于修改密码）
   const validatePassword = (password: string): boolean => {
     const check = validatePasswordStrength(password);
-    if (!check.valid) {
-      setPasswordError(check.message);
-      return false;
-    }
-    return true;
-  };
-  
-  // 处理密码修改
-  const handlePasswordChange = async () => {
-    // 重置错误信息
-    setPasswordError('');
-    
-    // 验证当前密码
-    const currentUser = users.find(user => user.username === username);
-    if (!currentUser || currentUser.password !== currentPassword) {
-      setPasswordError('当前密码错误');
-      return;
-    }
-    
-    // 验证新密码
-    if (!validatePassword(newPassword)) {
-      return;
-    }
-    
-    // 验证确认密码
-    if (newPassword !== confirmPassword) {
-      setPasswordError('两次输入的密码不一致');
-      return;
-    }
-    
-    // 更新密码
-    const updatedUser = {
-      ...currentUser,
-      password: newPassword,
-      lastPasswordChange: new Date()
-    };
-
-    try {
-      // 使用新的存储服务更新用户密码
-      await storageService.updateUser(updatedUser);
-      
-      // 更新React状态
-      const updatedUsers = users.map(user => user.id === currentUser.id ? updatedUser : user);
-      setUsers(updatedUsers);
-      // 记录日志
-      addLog(`用户 ${username} 修改了密码`);
-      // 显示成功消息
-      displayAlert('密码修改成功', 'success');
-      // 重置表单
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setShowPasswordModal(false);
-    } catch (error) {
-      console.error('修改密码失败:', error);
-      // 记录日志
-      addLog(`用户 ${username} 修改密码失败`);
-      // 显示错误消息
-      displayAlert('密码修改失败，数据无法保存到数据库', 'error');
-    }
+    return check.valid;
   };
   
   // 处理管理员重置用户密码
@@ -580,6 +1654,18 @@ const App: React.FC = () => {
       addLog(`管理员重置用户 ${username} 的密码失败`);
       // 显示错误消息
       displayAlert(`用户 ${username} 的密码重置失败，数据无法保存到数据库`, 'error');
+    }
+  };
+  
+  // 处理用户更新（包括头像）
+  const handleUpdateUser = async (user: User): Promise<void> => {
+    try {
+      await storageService.updateUser(user);
+      const updatedUsers = users.map(u => u.id === user.id ? user : u);
+      setUsers(updatedUsers);
+    } catch (error) {
+      console.error('更新用户失败:', error);
+      throw error;
     }
   };
   
@@ -1609,14 +2695,24 @@ const App: React.FC = () => {
       return 'https://xuanren-1.onrender.com/api';
     };
 
+    const apiUrl = getApiBaseUrl();
+    console.log('正在连接服务器:', apiUrl);
+
     try {
-      const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
+      // 创建 AbortController 用于超时控制（Render 免费版需要60秒冷启动时间）
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+      const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -1654,8 +2750,10 @@ const App: React.FC = () => {
       console.error('登录失败:', error);
       // 统一错误提示信息
       let errorMessage = '登录失败，请稍后重试';
-      if (error.message === 'Failed to fetch') {
-        errorMessage = '无法连接到服务器，请检查网络连接或稍后重试';
+      if (error.name === 'AbortError') {
+        errorMessage = '请求超时，服务器可能正在启动，请稍后重试';
+      } else if (error.message === 'Failed to fetch' || error.message?.includes('network') || error.message?.includes('fetch')) {
+        errorMessage = '无法连接到服务器，请检查网络连接或稍后重试（服务器可能需要30-60秒冷启动时间）';
       } else if (error.message === '用户名或密码错误') {
         errorMessage = '用户名或密码错误，请重新输入';
       } else if (error.message === '账号已被禁用，请联系管理员') {
@@ -2824,9 +3922,9 @@ const App: React.FC = () => {
         {currentTheme.effects.scanline && <div className="scanline" />}
         {currentTheme.effects.particles && <div className="particles-container" id="particles" />}
         
-        {/* 主题切换按钮 */}
+        {/* 主题切换按钮 - 登录页面使用简化版 */}
         <div style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 100 }}>
-          <ThemeSwitcher />
+          <SimpleThemeSwitcher />
         </div>
 
         <div style={{
@@ -2934,7 +4032,7 @@ const App: React.FC = () => {
                 style={{
                   width: '100%',
                   padding: '14px 18px',
-                  background: 'rgba(0,0,0,0.3)',
+                  background: currentTheme.id === 'classic' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.3)',
                   border: `1px solid ${currentTheme.colors.border}`,
                   borderRadius: '8px',
                   color: currentTheme.colors.text,
@@ -2973,7 +4071,7 @@ const App: React.FC = () => {
                 style={{
                   width: '100%',
                   padding: '14px 18px',
-                  background: 'rgba(0,0,0,0.3)',
+                  background: currentTheme.id === 'classic' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.3)',
                   border: `1px solid ${currentTheme.colors.border}`,
                   borderRadius: '8px',
                   color: currentTheme.colors.text,
@@ -3075,7 +4173,7 @@ const App: React.FC = () => {
               padding: '32px',
               maxWidth: '400px',
               width: '90%',
-              boxShadow: `0 8px 24px ${currentTheme.colors.glow}`,
+              boxShadow: `0 8px 24px ${currentTheme.colors.primary}40`,
               border: `2px solid ${currentTheme.colors.border}`
             }}>
               <div style={{
@@ -3188,6 +4286,38 @@ const App: React.FC = () => {
       {currentTheme.effects.scanline && <div className="scanline" />}
       {currentTheme.effects.particles && <div className="particles-container" id="particles" />}
       
+      {/* 主题两侧背景图片 */}
+      {(currentTheme.id === 'lighthouse' || currentTheme.id === 'mana' || currentTheme.id === 'chimera' || currentTheme.id === 'classic') && (
+        <>
+          <div style={{
+            position: 'fixed',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: '350px',
+            backgroundImage: `url(./src/images/${currentTheme.id}-left.jpg)`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            opacity: 0.4,
+            zIndex: 1,
+            pointerEvents: 'none'
+          }} />
+          <div style={{
+            position: 'fixed',
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: '350px',
+            backgroundImage: `url(./src/images/${currentTheme.id}-right.jpg)`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            opacity: 0.4,
+            zIndex: 1,
+            pointerEvents: 'none'
+          }} />
+        </>
+      )}
+      
       <div className="container" style={{ position: 'relative', zIndex: 10 }}>
       {/* 自定义弹框 */}
       {showAlert && (
@@ -3276,31 +4406,35 @@ const App: React.FC = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 10000
         }}>
           <div style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '8px',
-            padding: '20px',
+            backgroundColor: currentTheme.colors.surface,
+            borderRadius: '12px',
+            padding: '24px',
             maxWidth: '80%',
             maxHeight: '80%',
             overflow: 'auto',
-            boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-            border: `2px solid ${currentTheme.colors.border}`
+            boxShadow: `0 8px 32px rgba(0, 0, 0, 0.4), 0 0 16px ${currentTheme.colors.primary}20`,
+            border: `1px solid ${currentTheme.colors.border}`
           }}>
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: '15px'
+              marginBottom: '20px',
+              paddingBottom: '15px',
+              borderBottom: `1px solid ${currentTheme.colors.border}`
             }}>
               <h3 style={{
                 margin: 0,
-                color: '#5a3d31'
+                color: currentTheme.colors.primary,
+                fontSize: '20px',
+                fontWeight: 600
               }}>
                 选择数据集
               </h3>
@@ -3309,10 +4443,13 @@ const App: React.FC = () => {
                 style={{
                   background: 'none',
                   border: 'none',
-                  fontSize: '20px',
+                  fontSize: '24px',
                   cursor: 'pointer',
-                  color: '#999'
+                  color: currentTheme.colors.textSecondary,
+                  transition: 'color 0.2s'
                 }}
+                onMouseEnter={(e) => e.currentTarget.style.color = currentTheme.colors.primary}
+                onMouseLeave={(e) => e.currentTarget.style.color = currentTheme.colors.textSecondary}
               >
                 ×
               </button>
@@ -3321,20 +4458,21 @@ const App: React.FC = () => {
               marginBottom: '20px'
             }}>
               {dataSets.length === 0 ? (
-                <p>暂无可用数据集，请先导入文件。</p>
+                <p style={{ color: currentTheme.colors.textSecondary }}>暂无可用数据集，请先导入文件。</p>
               ) : (
                 <div style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '10px'
+                  gap: '12px'
                 }}>
                   {dataSets.map((dataSet) => (
                     <div key={dataSet.id} style={{
-                      padding: '12px',
-                      border: `1px solid ${currentDataSetId === dataSet.id ? currentTheme.colors.primary : '#ddd'}`,
-                      borderRadius: '4px',
-                      backgroundColor: currentDataSetId === dataSet.id ? '#fff5f5' : '#ffffff',
-                      cursor: 'pointer'
+                      padding: '14px',
+                      border: `1px solid ${currentDataSetId === dataSet.id ? currentTheme.colors.primary : currentTheme.colors.border}`,
+                      borderRadius: '8px',
+                      backgroundColor: currentDataSetId === dataSet.id ? `${currentTheme.colors.primary}15` : currentTheme.colors.dropdownButtonBg,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
                     }} onClick={async () => {
                       setCurrentDataSetId(dataSet.id);
                       setShowDataSetModal(false);
@@ -3386,17 +4524,18 @@ const App: React.FC = () => {
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        marginBottom: '5px'
+                        marginBottom: '8px'
                       }}>
-                        <h4 style={{ margin: 0, color: '#5a3d31' }}>{dataSet.name}</h4>
+                        <h4 style={{ margin: 0, color: currentTheme.colors.text, fontSize: '16px' }}>{dataSet.name}</h4>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                           {currentDataSetId === dataSet.id && (
                             <span style={{
-                              padding: '2px 8px',
-                              backgroundColor: '#ff6b81',
-                              color: 'white',
-                              borderRadius: '10px',
-                              fontSize: '12px'
+                              padding: '4px 10px',
+                              backgroundColor: currentTheme.colors.primary,
+                              color: currentTheme.colors.background,
+                              borderRadius: '12px',
+                              fontSize: '12px',
+                              fontWeight: 500
                             }}>
                               当前使用
                             </span>
@@ -3409,20 +4548,27 @@ const App: React.FC = () => {
                               }
                             }}
                             style={{
-                              padding: '4px 8px',
-                              backgroundColor: '#ff6b81',
-                              color: 'white',
+                              padding: '6px 12px',
+                              backgroundColor: currentTheme.colors.danger,
+                              color: '#ffffff',
                               border: 'none',
-                              borderRadius: '4px',
+                              borderRadius: '6px',
                               cursor: 'pointer',
-                              fontSize: '12px'
+                              fontSize: '12px',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.opacity = '0.8';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.opacity = '1';
                             }}
                           >
                             删除
                           </button>
                         </div>
                       </div>
-                      <div style={{ fontSize: '14px', color: '#666' }}>
+                      <div style={{ fontSize: '14px', color: currentTheme.colors.textSecondary }}>
                         <div>记录数: {dataSet.count}</div>
                         <div>创建时间: {dataSet.createdAt instanceof Date ? dataSet.createdAt.toLocaleString() : (dataSet.createdAt ? new Date(dataSet.createdAt).toLocaleString() : '未知')}</div>
                       </div>
@@ -3433,18 +4579,29 @@ const App: React.FC = () => {
             </div>
             <div style={{
               display: 'flex',
-              justifyContent: 'flex-end'
+              justifyContent: 'flex-end',
+              marginTop: '20px',
+              paddingTop: '15px',
+              borderTop: `1px solid ${currentTheme.colors.border}`
             }}>
               <button
                 onClick={() => setShowDataSetModal(false)}
                 style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#ffb3ba',
-                  color: '#ffffff',
+                  padding: '10px 20px',
+                  backgroundColor: currentTheme.colors.primary,
+                  color: currentTheme.colors.background,
                   border: 'none',
-                  borderRadius: '4px',
+                  borderRadius: '6px',
                   cursor: 'pointer',
-                  fontSize: '14px'
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.8';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1';
                 }}
               >
                 关闭
@@ -3453,9 +4610,11 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
-      <div className="header" style={{ 
-        borderBottom: `1px solid ${currentTheme.colors.border}`,
-        padding: '20px 0',
+      <div className="header" style={{
+        backgroundColor: currentTheme.colors.surface,
+        border: `1px solid ${currentTheme.colors.border}`,
+        borderRadius: '12px',
+        padding: '20px',
         marginBottom: '30px'
       }}>
         {/* 标题行 */}
@@ -3487,216 +4646,219 @@ const App: React.FC = () => {
               background: currentTheme.colors.surface,
               fontSize: '13px',
               fontWeight: 'bold',
-              boxShadow: `0 0 10px ${currentTheme.colors.glow || currentTheme.colors.primary}40`,
+              boxShadow: `0 0 10px ${currentTheme.colors.primary}40`,
               flexShrink: 0
             }}>
-              {currentTheme.id === 'lighthouse' ? '灯塔' : currentTheme.id === 'chimera' ? '生态' : currentTheme.id === 'mana' ? '玛娜' : '经典'}
+              {currentTheme.id === 'lighthouse' ? '灯塔' : currentTheme.id === 'chimera' ? '源质' : currentTheme.id === 'mana' ? '玛娜' : '经典'}
             </span>
             <span style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
-              <span>{currentTheme.name}</span>
-              <span style={{ color: currentTheme.colors.textSecondary, margin: '0 6px' }}>//</span>
-              <span style={{ fontSize: '18px', color: currentTheme.colors.text }}>人员筛选系统</span>
-              <span style={{ color: currentTheme.colors.textSecondary, margin: '0 6px' }}>//</span>
-              <span style={{ fontSize: '16px', letterSpacing: '1px' }}>PERSONNEL FILTER</span>
+              {(currentTheme.id !== 'classic' && currentTheme.id !== 'lighthouse' && currentTheme.id !== 'chimera' && currentTheme.id !== 'mana') && <span>{currentTheme.name}</span>}
+              {(currentTheme.id !== 'classic' && currentTheme.id !== 'lighthouse' && currentTheme.id !== 'chimera' && currentTheme.id !== 'mana') && <span style={{ color: currentTheme.colors.textSecondary, margin: '0 6px' }}>//</span>}
+              {currentTheme.id === 'chimera' ? (
+                <>
+                  <span style={{ fontSize: '18px', color: currentTheme.colors.text }}>生命源质筛选</span>
+                  <span style={{ color: currentTheme.colors.textSecondary, margin: '0 6px' }}>//</span>
+                  <span style={{ fontSize: '16px', letterSpacing: '1px' }}>CHIMERA FILTER</span>
+                </>
+              ) : currentTheme.id === 'mana' ? (
+                <>
+                  <span style={{ fontSize: '18px', color: currentTheme.colors.text }}>神民筛选系统</span>
+                  <span style={{ color: currentTheme.colors.textSecondary, margin: '0 6px' }}>//</span>
+                  <span style={{ fontSize: '16px', letterSpacing: '1px' }}>DIVINE SELECTION</span>
+                </>
+              ) : (
+                <>
+                  <span style={{ fontSize: '18px', color: currentTheme.colors.text }}>人员筛选系统</span>
+                  <span style={{ color: currentTheme.colors.textSecondary, margin: '0 6px' }}>//</span>
+                  <span style={{ fontSize: '16px', letterSpacing: '1px' }}>PERSONNEL FILTER</span>
+                </>
+              )}
             </span>
           </h1>
           
-          {/* 主题切换器 */}
-          <ThemeSwitcher />
         </div>
-        
-        {/* 操作按钮行 */}
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* 当前用户信息展示 */}
-          {isLoggedIn && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '6px 12px',
-              background: currentTheme.colors.surface,
-              borderRadius: '20px',
-              border: `1px solid ${currentTheme.colors.border}`
-            }}>
-              {/* 用户头像 */}
-              <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.accent})`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: currentTheme.colors.background,
-                fontWeight: 'bold',
-                fontSize: '14px'
-              }}>
-                {username ? username.charAt(0).toUpperCase() : 'U'}
-              </div>
-              {/* 用户信息 */}
-              <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3 }}>
-                <span style={{ fontSize: '14px', fontWeight: '600', color: currentTheme.colors.text }}>
-                  {username || '用户'}
-                </span>
-                <span style={{ fontSize: '11px', color: currentTheme.colors.textSecondary }}>
-                  {userRole === 'admin' ? '管理员' : '成员'}
-                </span>
-              </div>
-            </div>
-          )}
-          {modules.fileUpload && (userRole === 'admin' || userRole === 'member') && (
-            <>
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleFileUpload}
-                style={{ display: 'none' }}
-                id="excel-upload"
-              />
-              <button 
-                type="button" 
-                onClick={() => document.getElementById('excel-upload')?.click()} 
-                disabled={uploading}
-                style={{
-                  padding: '10px 20px',
-                  background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.accent})`,
-                  border: 'none',
-                  borderRadius: '6px',
-                  color: currentTheme.colors.background,
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: uploading ? 'not-allowed' : 'pointer',
-                  opacity: uploading ? 0.6 : 1,
-                  transition: 'all 0.3s',
-                  fontFamily: currentTheme.fonts.body,
-                }}
-                onMouseEnter={(e) => {
-                  if (!uploading) {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = `0 4px 15px ${currentTheme.colors.primary}50`;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              >
-                {uploading ? '上传中...' : '导入文件'}
-              </button>
-              {dataSets.length > 0 && (
-                <button 
-                  type="button" 
-                  onClick={() => setShowDataSetModal(true)}
+
+        {/* 操作按钮行 - 用户设置在右上角，其他按钮在左侧 */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          {/* 左侧按钮组 */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'nowrap' }}>
+            {/* 导入文件按钮 - 仅登录用户可见 */}
+            {modules.fileUpload && (userRole === 'admin' || userRole === 'member') && (
+              <>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleFileUpload}
+                  style={{ display: 'none' }}
+                  id="excel-upload"
+                />
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('excel-upload')?.click()}
+                  disabled={uploading}
                   style={{
-                    padding: '10px 20px',
-                    background: 'transparent',
-                    border: `1px solid ${currentTheme.colors.primary}`,
+                    padding: '8px 14px',
+                    background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.accent})`,
+                    border: 'none',
                     borderRadius: '6px',
-                    color: currentTheme.colors.primary,
-                    fontSize: '14px',
+                    color: currentTheme.colors.background,
+                    fontSize: '13px',
                     fontWeight: 600,
-                    cursor: 'pointer',
+                    cursor: uploading ? 'not-allowed' : 'pointer',
+                    opacity: uploading ? 0.6 : 1,
                     transition: 'all 0.3s',
                     fontFamily: currentTheme.fonts.body,
+                    whiteSpace: 'nowrap',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = currentTheme.colors.primary;
-                    e.currentTarget.style.color = currentTheme.colors.background;
+                    if (!uploading) {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = `0 4px 15px ${currentTheme.colors.primary}50`;
+                    }
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = currentTheme.colors.primary;
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  切换数据集
+                  {uploading ? '上传中...' : '导入文件'}
                 </button>
-              )}
-            </>
-          )}
-          {uploading && (
-            <div style={{ width: '200px', marginTop: '10px' }}>
-              <div style={{ 
-                width: '100%', 
-                height: '8px', 
-                backgroundColor: '#ffb3ba', 
-                borderRadius: '4px',
-                overflow: 'hidden'
-              }}>
+              </>
+            )}
+            {/* 数据集按钮 - 只要有数据集就显示 */}
+            {dataSets.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowDataSetModal(true)}
+                style={{
+                  padding: '8px 14px',
+                  background: 'transparent',
+                  border: `1px solid ${currentTheme.colors.primary}`,
+                  borderRadius: '6px',
+                  color: currentTheme.colors.primary,
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s',
+                  fontFamily: currentTheme.fonts.body,
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = currentTheme.colors.primary;
+                  e.currentTarget.style.color = currentTheme.colors.background;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = currentTheme.colors.primary;
+                }}
+              >
+                切换数据集
+              </button>
+            )}
+            {uploading && (
+              <div style={{ width: '200px', marginTop: '10px' }}>
                 <div style={{ 
-                  width: `${uploadProgress}%`, 
-                  height: '100%', 
-                  backgroundColor: '#ff6b81',
-                  transition: 'width 0.3s ease'
-                }} />
+                  width: '100%', 
+                  height: '8px', 
+                  backgroundColor: '#ffb3ba', 
+                  borderRadius: '4px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{ 
+                    width: `${uploadProgress}%`, 
+                    height: '100%', 
+                    backgroundColor: '#ff6b81',
+                    transition: 'width 0.3s ease'
+                  }} />
+                </div>
+                <div style={{ 
+                  fontSize: '12px', 
+                  textAlign: 'center', 
+                  marginTop: '5px',
+                  color: '#5a3d31'
+                }}>
+                  {uploadProgress}%
+                </div>
               </div>
-              <div style={{ 
-                fontSize: '12px', 
-                textAlign: 'center', 
-                marginTop: '5px',
-                color: '#5a3d31'
-              }}>
-                {uploadProgress}%
-              </div>
-            </div>
-          )}
-          {modules.adminPanel && (userRole === 'admin') && (
+            )}
+            {modules.adminPanel && (userRole === 'admin') && (
+              <button 
+                type="button" 
+                onClick={() => setShowAdminPanel(!showAdminPanel)}
+                style={{
+                  padding: '8px 14px',
+                  background: 'transparent',
+                  border: `1px solid ${currentTheme.colors.primary}`,
+                  borderRadius: '6px',
+                  color: currentTheme.colors.primary,
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s',
+                  fontFamily: currentTheme.fonts.body,
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = currentTheme.colors.primary;
+                  e.currentTarget.style.color = currentTheme.colors.background;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = currentTheme.colors.primary;
+                }}
+              >
+                {showAdminPanel ? '返回筛选' : '后台管理'}
+              </button>
+            )}
             <button 
-              type="button" 
-              onClick={() => setShowAdminPanel(!showAdminPanel)}
+              onClick={handleLogout}
               style={{
-                padding: '10px 20px',
+                padding: '8px 14px',
                 background: 'transparent',
                 border: `1px solid ${currentTheme.colors.primary}`,
                 borderRadius: '6px',
                 color: currentTheme.colors.primary,
-                fontSize: '14px',
+                fontSize: '13px',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.3s',
                 fontFamily: currentTheme.fonts.body,
+                letterSpacing: '0.5px',
+                whiteSpace: 'nowrap',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = currentTheme.colors.primary;
                 e.currentTarget.style.color = currentTheme.colors.background;
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = `0 4px 15px ${currentTheme.colors.primary}50`;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = 'transparent';
                 e.currentTarget.style.color = currentTheme.colors.primary;
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
               }}
             >
-              {showAdminPanel ? '返回筛选' : '后台管理'}
+              {currentTheme.labels.logout}
             </button>
+          </div>
+          
+          {/* 右侧用户设置 */}
+          {isLoggedIn && (
+            <UserThemeDropdown
+              username={username}
+              userRole={userRole}
+              onLogout={handleLogout}
+              users={users}
+              onUpdateUser={handleUpdateUser}
+              onShowPasswordModal={() => setShowPasswordModal(true)}
+            />
           )}
-          <button 
-            onClick={handleLogout}
-            style={{
-              padding: '10px 20px',
-              background: 'transparent',
-              border: `1px solid ${currentTheme.colors.primary}`,
-              borderRadius: '6px',
-              color: currentTheme.colors.primary,
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.3s',
-              fontFamily: currentTheme.fonts.body,
-              letterSpacing: '1px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = currentTheme.colors.primary;
-              e.currentTarget.style.color = currentTheme.colors.background;
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = `0 4px 15px ${currentTheme.colors.primary}50`;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.color = currentTheme.colors.primary;
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-          >
-            {currentTheme.labels.logout}
-          </button>
         </div>
       </div>
 
@@ -3762,38 +4924,46 @@ const App: React.FC = () => {
                       { id: 'qwen', name: '通义千问', desc: '阿里云', color: '#ff6a00' },
                       { id: 'doubao', name: '豆包', desc: '字节跳动', color: '#1677ff' },
                       { id: 'custom', name: '自定义', desc: 'OpenAI兼容', color: '#52c41a' }
-                    ].map(model => (
-                      <button
-                        key={model.id}
-                        type="button"
-                        onClick={() => setAiProvider(model.id)}
-                        style={{
-                          padding: '8px 14px',
-                          border: `2px solid ${aiProvider === model.id ? model.color : '#ddd'}`,
-                          borderRadius: '8px',
-                          backgroundColor: aiProvider === model.id ? `${model.color}15` : '#fff',
-                          color: aiProvider === model.id ? model.color : '#555',
-                          cursor: 'pointer',
-                          fontSize: '13px',
-                          fontWeight: aiProvider === model.id ? '600' : '400',
-                          transition: 'all 0.2s ease',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: '2px',
-                          minWidth: '80px'
-                        }}
-                      >
-                        <span>{model.name}</span>
-                        <span style={{ fontSize: '10px', opacity: 0.7 }}>{model.desc}</span>
-                      </button>
-                    ))}
+                    ].map(model => {
+                      // 检查该模型是否配置了API Key（检查每个模型自己的配置）
+                      const modelConfig = aiConfigs[model.id as keyof typeof aiConfigs];
+                      const isConfigured = modelConfig && modelConfig.apiKey && modelConfig.apiKey.trim() !== '';
+                      return (
+                        <button
+                          key={model.id}
+                          type="button"
+                          onClick={() => setAiProvider(model.id)}
+                          style={{
+                            padding: '8px 14px',
+                            border: `2px solid ${aiProvider === model.id ? model.color : '#ddd'}`,
+                            borderRadius: '8px',
+                            backgroundColor: aiProvider === model.id ? `${model.color}15` : '#fff',
+                            color: aiProvider === model.id ? model.color : '#555',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            fontWeight: aiProvider === model.id ? '600' : '400',
+                            transition: 'all 0.2s ease',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '2px',
+                            minWidth: '80px',
+                            position: 'relative'
+                          }}
+                        >
+                          <span>{model.name}</span>
+                          <span style={{ fontSize: '10px', opacity: 0.7 }}>
+                            {isConfigured ? '✓ 已配置' : model.desc}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
                   <div>
                     <label style={{ fontSize: '13px', color: currentTheme.colors.textSecondary, display: 'block', marginBottom: '4px' }}>API Key *</label>
                     <input
-                      type="password"
+                      type="text"
                       value={aiApiKey}
                       onChange={(e) => setAiApiKey(e.target.value)}
                       placeholder={aiProvider === 'deepseek' ? 'sk-...' : aiProvider === 'qwen' ? 'sk-...' : aiProvider === 'doubao' ? '输入 API Key' : '输入 OpenAI 格式的 API Key'}
@@ -3862,10 +5032,11 @@ const App: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => {
-                          setAiApiKey('');
-                          setAiBaseUrl('');
-                          setAiModel('');
-                          storageService.saveAIConfig({ provider: aiProvider, apiKey: '', baseUrl: '', model: '' });
+                          // 清除当前模型的配置
+                          setAiConfigs(prev => ({
+                            ...prev,
+                            [aiProvider]: { apiKey: '', baseUrl: '', model: '' }
+                          }));
                           setAiConfigSaved(false);
                         }}
                         style={{
@@ -3892,18 +5063,22 @@ const App: React.FC = () => {
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !isSmartSearching) { e.preventDefault(); handleSmartSearch(); } }}
                 placeholder='例如：30岁以下有PMP证书的软件工程师'
                 rows={2}
+                className="ai-search-textarea"
                 style={{
                   flex: 1,
                   padding: '10px 14px',
-                  border: `2px solid ${currentTheme.colors.primary}`,
+                  backgroundColor: currentTheme.colors.aiSearchBg || currentTheme.colors.surface,
+                  border: `1px solid ${currentTheme.colors.aiSearchBorder || currentTheme.colors.primary}`,
                   borderRadius: '8px',
                   fontSize: '14px',
+                  color: currentTheme.colors.aiSearchText || currentTheme.colors.text,
                   outline: 'none',
                   resize: 'vertical',
                   minHeight: '52px',
                   fontFamily: 'inherit',
-                  lineHeight: '1.5'
-                }}
+                  lineHeight: '1.5',
+                  '--placeholder-color': currentTheme.colors.aiSearchPlaceholder || currentTheme.colors.textSecondary
+                } as React.CSSProperties}
               />
               <button
                 type="button"
@@ -4086,38 +5261,38 @@ const App: React.FC = () => {
                   top: '100%',
                   left: 0,
                   right: 0,
-                  backgroundColor: '#ffffff',
+                  backgroundColor: currentTheme.colors.dropdownBg,
                   border: `1px solid ${currentTheme.colors.border}`,
-                  borderRadius: '4px',
+                  borderRadius: '8px',
                   padding: '10px',
                   zIndex: 1000,
                   marginTop: '5px',
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                  boxShadow: `0 4px 12px rgba(0,0,0,0.3), 0 0 8px ${currentTheme.colors.border}`,
                   animation: 'fadeIn 0.2s ease'
                 }}>
-                  <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#000000' }}>常用年龄区间</h4>
+                  <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: currentTheme.colors.text }}>常用年龄区间</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '15px' }}>
                     <button
                       type="button"
                       onClick={() => handleAgeRangeSelect(0, 100)}
                       style={{
                         padding: '6px 10px',
-                        border: '1px solid #ddd',
+                        border: `1px solid ${currentTheme.colors.border}`,
                         borderRadius: '4px',
-                        backgroundColor: '#ffffff',
-                        color: '#000000',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text,
                         cursor: 'pointer',
                         textAlign: 'center',
                         fontSize: '12px',
                         transition: 'all 0.2s ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffe6e6';
-                        e.currentTarget.style.borderColor = '#ffb3ba';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.accent;
+                        e.currentTarget.style.borderColor = currentTheme.colors.accent;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffffff';
-                        e.currentTarget.style.borderColor = '#ddd';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.dropdownButtonBg;
+                        e.currentTarget.style.borderColor = currentTheme.colors.border;
                       }}
                     >
                       全部年龄
@@ -4127,22 +5302,22 @@ const App: React.FC = () => {
                       onClick={() => handleAgeRangeSelect(18, 30)}
                       style={{
                         padding: '6px 10px',
-                        border: '1px solid #ddd',
+                        border: `1px solid ${currentTheme.colors.border}`,
                         borderRadius: '4px',
-                        backgroundColor: '#ffffff',
-                        color: '#000000',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text,
                         cursor: 'pointer',
                         textAlign: 'center',
                         fontSize: '12px',
                         transition: 'all 0.2s ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffe6e6';
-                        e.currentTarget.style.borderColor = '#ffb3ba';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.accent;
+                        e.currentTarget.style.borderColor = currentTheme.colors.accent;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffffff';
-                        e.currentTarget.style.borderColor = '#ddd';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.dropdownButtonBg;
+                        e.currentTarget.style.borderColor = currentTheme.colors.border;
                       }}
                     >
                       18-30岁
@@ -4152,22 +5327,22 @@ const App: React.FC = () => {
                       onClick={() => handleAgeRangeSelect(31, 40)}
                       style={{
                         padding: '6px 10px',
-                        border: '1px solid #ddd',
+                        border: `1px solid ${currentTheme.colors.border}`,
                         borderRadius: '4px',
-                        backgroundColor: '#ffffff',
-                        color: '#000000',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text,
                         cursor: 'pointer',
                         textAlign: 'center',
                         fontSize: '12px',
                         transition: 'all 0.2s ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffe6e6';
-                        e.currentTarget.style.borderColor = '#ffb3ba';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.accent;
+                        e.currentTarget.style.borderColor = currentTheme.colors.accent;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffffff';
-                        e.currentTarget.style.borderColor = '#ddd';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.dropdownButtonBg;
+                        e.currentTarget.style.borderColor = currentTheme.colors.border;
                       }}
                     >
                       31-40岁
@@ -4177,22 +5352,22 @@ const App: React.FC = () => {
                       onClick={() => handleAgeRangeSelect(41, 50)}
                       style={{
                         padding: '6px 10px',
-                        border: '1px solid #ddd',
+                        border: `1px solid ${currentTheme.colors.border}`,
                         borderRadius: '4px',
-                        backgroundColor: '#ffffff',
-                        color: '#000000',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text,
                         cursor: 'pointer',
                         textAlign: 'center',
                         fontSize: '12px',
                         transition: 'all 0.2s ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffe6e6';
-                        e.currentTarget.style.borderColor = '#ffb3ba';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.accent;
+                        e.currentTarget.style.borderColor = currentTheme.colors.accent;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffffff';
-                        e.currentTarget.style.borderColor = '#ddd';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.dropdownButtonBg;
+                        e.currentTarget.style.borderColor = currentTheme.colors.border;
                       }}
                     >
                       41-50岁
@@ -4202,22 +5377,22 @@ const App: React.FC = () => {
                       onClick={() => handleAgeRangeSelect(51, 60)}
                       style={{
                         padding: '6px 10px',
-                        border: '1px solid #ddd',
+                        border: `1px solid ${currentTheme.colors.border}`,
                         borderRadius: '4px',
-                        backgroundColor: '#ffffff',
-                        color: '#000000',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text,
                         cursor: 'pointer',
                         textAlign: 'center',
                         fontSize: '12px',
                         transition: 'all 0.2s ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffe6e6';
-                        e.currentTarget.style.borderColor = '#ffb3ba';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.accent;
+                        e.currentTarget.style.borderColor = currentTheme.colors.accent;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffffff';
-                        e.currentTarget.style.borderColor = '#ddd';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.dropdownButtonBg;
+                        e.currentTarget.style.borderColor = currentTheme.colors.border;
                       }}
                     >
                       51-60岁
@@ -4227,28 +5402,28 @@ const App: React.FC = () => {
                       onClick={() => handleAgeRangeSelect(61, 100)}
                       style={{
                         padding: '6px 10px',
-                        border: '1px solid #ddd',
+                        border: `1px solid ${currentTheme.colors.border}`,
                         borderRadius: '4px',
-                        backgroundColor: '#ffffff',
-                        color: '#000000',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text,
                         cursor: 'pointer',
                         textAlign: 'center',
                         fontSize: '12px',
                         transition: 'all 0.2s ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffe6e6';
-                        e.currentTarget.style.borderColor = '#ffb3ba';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.accent;
+                        e.currentTarget.style.borderColor = currentTheme.colors.accent;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffffff';
-                        e.currentTarget.style.borderColor = '#ddd';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.dropdownButtonBg;
+                        e.currentTarget.style.borderColor = currentTheme.colors.border;
                       }}
                     >
                       61岁以上
                     </button>
                   </div>
-                  <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#000000' }}>自定义区间</h4>
+                  <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: currentTheme.colors.text }}>自定义区间</h4>
                   <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
                     <input
                       type="number"
@@ -4262,11 +5437,13 @@ const App: React.FC = () => {
                       style={{
                         flex: 1,
                         padding: '6px 8px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px'
+                        border: `1px solid ${currentTheme.colors.border}`,
+                        borderRadius: '4px',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text
                       }}
                     />
-                    <span style={{ display: 'flex', alignItems: 'center' }}>至</span>
+                    <span style={{ display: 'flex', alignItems: 'center', color: currentTheme.colors.text }}>至</span>
                     <input
                       type="number"
                       id="ageMax"
@@ -4279,8 +5456,10 @@ const App: React.FC = () => {
                       style={{
                         flex: 1,
                         padding: '6px 8px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px'
+                        border: `1px solid ${currentTheme.colors.border}`,
+                        borderRadius: '4px',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text
                       }}
                     />
                   </div>
@@ -4368,38 +5547,38 @@ const App: React.FC = () => {
                   top: '100%',
                   left: 0,
                   right: 0,
-                  backgroundColor: '#ffffff',
+                  backgroundColor: currentTheme.colors.dropdownBg,
                   border: `1px solid ${currentTheme.colors.border}`,
-                  borderRadius: '4px',
+                  borderRadius: '8px',
                   padding: '10px',
                   zIndex: 1000,
                   marginTop: '5px',
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                  boxShadow: `0 4px 12px rgba(0,0,0,0.3), 0 0 8px ${currentTheme.colors.border}`,
                   animation: 'fadeIn 0.2s ease'
                 }}>
-                  <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#000000' }}>常用年限区间</h4>
+                  <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: currentTheme.colors.text }}>常用年限区间</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '15px' }}>
                     <button
                       type="button"
                       onClick={() => handleTenureRangeSelect(0, 50)}
                       style={{
                         padding: '6px 10px',
-                        border: '1px solid #ddd',
+                        border: `1px solid ${currentTheme.colors.border}`,
                         borderRadius: '4px',
-                        backgroundColor: '#ffffff',
-                        color: '#000000',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text,
                         cursor: 'pointer',
                         textAlign: 'center',
                         fontSize: '12px',
                         transition: 'all 0.2s ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffe6e6';
-                        e.currentTarget.style.borderColor = '#ffb3ba';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.accent;
+                        e.currentTarget.style.borderColor = currentTheme.colors.accent;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffffff';
-                        e.currentTarget.style.borderColor = '#ddd';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.dropdownButtonBg;
+                        e.currentTarget.style.borderColor = currentTheme.colors.border;
                       }}
                     >
                       全部年限
@@ -4409,22 +5588,22 @@ const App: React.FC = () => {
                       onClick={() => handleTenureRangeSelect(0, 1)}
                       style={{
                         padding: '6px 10px',
-                        border: '1px solid #ddd',
+                        border: `1px solid ${currentTheme.colors.border}`,
                         borderRadius: '4px',
-                        backgroundColor: '#ffffff',
-                        color: '#000000',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text,
                         cursor: 'pointer',
                         textAlign: 'center',
                         fontSize: '12px',
                         transition: 'all 0.2s ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffe6e6';
-                        e.currentTarget.style.borderColor = '#ffb3ba';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.accent;
+                        e.currentTarget.style.borderColor = currentTheme.colors.accent;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffffff';
-                        e.currentTarget.style.borderColor = '#ddd';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.dropdownButtonBg;
+                        e.currentTarget.style.borderColor = currentTheme.colors.border;
                       }}
                     >
                       最近1年
@@ -4434,22 +5613,22 @@ const App: React.FC = () => {
                       onClick={() => handleTenureRangeSelect(0, 3)}
                       style={{
                         padding: '6px 10px',
-                        border: '1px solid #ddd',
+                        border: `1px solid ${currentTheme.colors.border}`,
                         borderRadius: '4px',
-                        backgroundColor: '#ffffff',
-                        color: '#000000',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text,
                         cursor: 'pointer',
                         textAlign: 'center',
                         fontSize: '12px',
                         transition: 'all 0.2s ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffe6e6';
-                        e.currentTarget.style.borderColor = '#ffb3ba';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.accent;
+                        e.currentTarget.style.borderColor = currentTheme.colors.accent;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffffff';
-                        e.currentTarget.style.borderColor = '#ddd';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.dropdownButtonBg;
+                        e.currentTarget.style.borderColor = currentTheme.colors.border;
                       }}
                     >
                       最近3年
@@ -4459,22 +5638,22 @@ const App: React.FC = () => {
                       onClick={() => handleTenureRangeSelect(0, 5)}
                       style={{
                         padding: '6px 10px',
-                        border: '1px solid #ddd',
+                        border: `1px solid ${currentTheme.colors.border}`,
                         borderRadius: '4px',
-                        backgroundColor: '#ffffff',
-                        color: '#000000',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text,
                         cursor: 'pointer',
                         textAlign: 'center',
                         fontSize: '12px',
                         transition: 'all 0.2s ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffe6e6';
-                        e.currentTarget.style.borderColor = '#ffb3ba';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.accent;
+                        e.currentTarget.style.borderColor = currentTheme.colors.accent;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffffff';
-                        e.currentTarget.style.borderColor = '#ddd';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.dropdownButtonBg;
+                        e.currentTarget.style.borderColor = currentTheme.colors.border;
                       }}
                     >
                       最近5年
@@ -4484,22 +5663,22 @@ const App: React.FC = () => {
                       onClick={() => handleTenureRangeSelect(1, 3)}
                       style={{
                         padding: '6px 10px',
-                        border: '1px solid #ddd',
+                        border: `1px solid ${currentTheme.colors.border}`,
                         borderRadius: '4px',
-                        backgroundColor: '#ffffff',
-                        color: '#000000',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text,
                         cursor: 'pointer',
                         textAlign: 'center',
                         fontSize: '12px',
                         transition: 'all 0.2s ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffe6e6';
-                        e.currentTarget.style.borderColor = '#ffb3ba';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.accent;
+                        e.currentTarget.style.borderColor = currentTheme.colors.accent;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffffff';
-                        e.currentTarget.style.borderColor = '#ddd';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.dropdownButtonBg;
+                        e.currentTarget.style.borderColor = currentTheme.colors.border;
                       }}
                     >
                       1-3年
@@ -4509,22 +5688,22 @@ const App: React.FC = () => {
                       onClick={() => handleTenureRangeSelect(3, 5)}
                       style={{
                         padding: '6px 10px',
-                        border: '1px solid #ddd',
+                        border: `1px solid ${currentTheme.colors.border}`,
                         borderRadius: '4px',
-                        backgroundColor: '#ffffff',
-                        color: '#000000',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text,
                         cursor: 'pointer',
                         textAlign: 'center',
                         fontSize: '12px',
                         transition: 'all 0.2s ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffe6e6';
-                        e.currentTarget.style.borderColor = '#ffb3ba';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.accent;
+                        e.currentTarget.style.borderColor = currentTheme.colors.accent;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffffff';
-                        e.currentTarget.style.borderColor = '#ddd';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.dropdownButtonBg;
+                        e.currentTarget.style.borderColor = currentTheme.colors.border;
                       }}
                     >
                       3-5年
@@ -4534,22 +5713,22 @@ const App: React.FC = () => {
                       onClick={() => handleTenureRangeSelect(5, 10)}
                       style={{
                         padding: '6px 10px',
-                        border: '1px solid #ddd',
+                        border: `1px solid ${currentTheme.colors.border}`,
                         borderRadius: '4px',
-                        backgroundColor: '#ffffff',
-                        color: '#000000',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text,
                         cursor: 'pointer',
                         textAlign: 'center',
                         fontSize: '12px',
                         transition: 'all 0.2s ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffe6e6';
-                        e.currentTarget.style.borderColor = '#ffb3ba';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.accent;
+                        e.currentTarget.style.borderColor = currentTheme.colors.accent;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffffff';
-                        e.currentTarget.style.borderColor = '#ddd';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.dropdownButtonBg;
+                        e.currentTarget.style.borderColor = currentTheme.colors.border;
                       }}
                     >
                       5-10年
@@ -4559,28 +5738,28 @@ const App: React.FC = () => {
                       onClick={() => handleTenureRangeSelect(10, 50)}
                       style={{
                         padding: '6px 10px',
-                        border: '1px solid #ddd',
+                        border: `1px solid ${currentTheme.colors.border}`,
                         borderRadius: '4px',
-                        backgroundColor: '#ffffff',
-                        color: '#000000',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text,
                         cursor: 'pointer',
                         textAlign: 'center',
                         fontSize: '12px',
                         transition: 'all 0.2s ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffe6e6';
-                        e.currentTarget.style.borderColor = '#ffb3ba';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.accent;
+                        e.currentTarget.style.borderColor = currentTheme.colors.accent;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffffff';
-                        e.currentTarget.style.borderColor = '#ddd';
+                        e.currentTarget.style.backgroundColor = currentTheme.colors.dropdownButtonBg;
+                        e.currentTarget.style.borderColor = currentTheme.colors.border;
                       }}
                     >
                       10年以上
                     </button>
                   </div>
-                  <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#000000' }}>自定义区间</h4>
+                  <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: currentTheme.colors.text }}>自定义区间</h4>
                   <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
                     <input
                       type="number"
@@ -4594,11 +5773,13 @@ const App: React.FC = () => {
                       style={{
                         flex: 1,
                         padding: '6px 8px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px'
+                        border: `1px solid ${currentTheme.colors.border}`,
+                        borderRadius: '4px',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text
                       }}
                     />
-                    <span style={{ display: 'flex', alignItems: 'center' }}>至</span>
+                    <span style={{ display: 'flex', alignItems: 'center', color: currentTheme.colors.text }}>至</span>
                     <input
                       type="number"
                       id="tenureMax"
@@ -4611,8 +5792,10 @@ const App: React.FC = () => {
                       style={{
                         flex: 1,
                         padding: '6px 8px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px'
+                        border: `1px solid ${currentTheme.colors.border}`,
+                        borderRadius: '4px',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text
                       }}
                     />
                   </div>
@@ -4700,16 +5883,16 @@ const App: React.FC = () => {
                   top: '100%',
                   left: 0,
                   right: 0,
-                  backgroundColor: '#ffffff',
+                  backgroundColor: currentTheme.colors.dropdownBg,
                   border: `1px solid ${currentTheme.colors.border}`,
-                  borderRadius: '4px',
+                  borderRadius: '8px',
                   padding: '10px',
                   zIndex: 1000,
                   marginTop: '5px',
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                  boxShadow: `0 4px 12px rgba(0,0,0,0.3), 0 0 8px ${currentTheme.colors.border}`,
                   animation: 'fadeIn 0.2s ease'
                 }}>
-                  <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#000000' }}>常用年限区间</h4>
+                  <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: currentTheme.colors.text }}>常用年限区间</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '15px' }}>
                     {[
                       { label: '全部', min: 0, max: 50 },
@@ -4725,29 +5908,29 @@ const App: React.FC = () => {
                         onClick={() => handleGraduationTenureRangeSelect(range.min, range.max)}
                         style={{
                           padding: '6px 10px',
-                          border: '1px solid #ddd',
+                          border: `1px solid ${currentTheme.colors.border}`,
                           borderRadius: '4px',
-                          backgroundColor: '#ffffff',
-                          color: '#000000',
+                          backgroundColor: currentTheme.colors.dropdownButtonBg,
+                          color: currentTheme.colors.text,
                           cursor: 'pointer',
                           textAlign: 'center',
                           fontSize: '12px',
                           transition: 'all 0.2s ease'
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#ffe6e6';
-                          e.currentTarget.style.borderColor = '#ffb3ba';
+                          e.currentTarget.style.backgroundColor = currentTheme.colors.accent;
+                          e.currentTarget.style.borderColor = currentTheme.colors.accent;
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = '#ffffff';
-                          e.currentTarget.style.borderColor = '#ddd';
+                          e.currentTarget.style.backgroundColor = currentTheme.colors.dropdownButtonBg;
+                          e.currentTarget.style.borderColor = currentTheme.colors.border;
                         }}
                       >
                         {range.label}
                       </button>
                     ))}
                   </div>
-                  <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#000000' }}>自定义区间</h4>
+                  <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: currentTheme.colors.text }}>自定义区间</h4>
                   <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
                     <input
                       type="number"
@@ -4760,11 +5943,13 @@ const App: React.FC = () => {
                       style={{
                         flex: 1,
                         padding: '6px 8px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px'
+                        border: `1px solid ${currentTheme.colors.border}`,
+                        borderRadius: '4px',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text
                       }}
                     />
-                    <span style={{ display: 'flex', alignItems: 'center' }}>至</span>
+                    <span style={{ display: 'flex', alignItems: 'center', color: currentTheme.colors.text }}>至</span>
                     <input
                       type="number"
                       name="graduationTenureMax"
@@ -4776,8 +5961,10 @@ const App: React.FC = () => {
                       style={{
                         flex: 1,
                         padding: '6px 8px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px'
+                        border: `1px solid ${currentTheme.colors.border}`,
+                        borderRadius: '4px',
+                        backgroundColor: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text
                       }}
                     />
                   </div>
@@ -4863,15 +6050,15 @@ const App: React.FC = () => {
                   top: '100%',
                   left: 0,
                   right: 0,
-                  backgroundColor: '#ffffff',
+                  backgroundColor: currentTheme.colors.dropdownBg,
                   border: `1px solid ${currentTheme.colors.border}`,
-                  borderRadius: '4px',
+                  borderRadius: '8px',
                   padding: '10px',
                   zIndex: 1000,
                   marginTop: '5px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                  boxShadow: `0 4px 12px rgba(0,0,0,0.3), 0 0 8px ${currentTheme.colors.border}`
                 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px', color: currentTheme.colors.text }}>
                     <input
                       type="checkbox"
                       checked={filters.education.includes('大专')}
@@ -4879,7 +6066,7 @@ const App: React.FC = () => {
                     />
                     大专
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px', color: currentTheme.colors.text }}>
                     <input
                       type="checkbox"
                       checked={filters.education.includes('本科')}
@@ -4887,7 +6074,7 @@ const App: React.FC = () => {
                     />
                     本科
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px', color: currentTheme.colors.text }}>
                     <input
                       type="checkbox"
                       checked={filters.education.includes('硕士')}
@@ -4895,7 +6082,7 @@ const App: React.FC = () => {
                     />
                     硕士
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px', color: currentTheme.colors.text }}>
                     <input
                       type="checkbox"
                       checked={filters.education.includes('博士')}
@@ -4906,12 +6093,12 @@ const App: React.FC = () => {
                   <div style={{
                     marginTop: '8px',
                     paddingTop: '8px',
-                    borderTop: '1px solid #f0f0f0',
+                    borderTop: `1px solid ${currentTheme.colors.border}`,
                     display: 'flex',
                     alignItems: 'center',
                     gap: '4px'
                   }}>
-                    <span style={{ fontSize: '12px', color: '#666', whiteSpace: 'nowrap' }}>是否全日制</span>
+                    <span style={{ fontSize: '12px', color: currentTheme.colors.textSecondary, whiteSpace: 'nowrap' }}>是否全日制</span>
                     {[
                       { label: '是', value: true },
                       { label: '否', value: false },
@@ -4925,9 +6112,9 @@ const App: React.FC = () => {
                         borderRadius: '12px',
                         cursor: 'pointer',
                         fontSize: '12px',
-                        border: isFullTime === opt.value ? '1.5px solid #ff6b81' : '1px solid #e0e0e0',
-                        backgroundColor: isFullTime === opt.value ? '#fff0f3' : '#fafafa',
-                        color: isFullTime === opt.value ? '#ff6b81' : '#666',
+                        border: isFullTime === opt.value ? `1.5px solid ${currentTheme.colors.accent}` : `1px solid ${currentTheme.colors.border}`,
+                        backgroundColor: isFullTime === opt.value ? `${currentTheme.colors.accent}30` : currentTheme.colors.dropdownButtonBg,
+                        color: isFullTime === opt.value ? currentTheme.colors.accent : currentTheme.colors.text,
                         fontWeight: isFullTime === opt.value ? 500 : 400,
                         transition: 'all 0.15s'
                       }}>
@@ -5007,14 +6194,14 @@ const App: React.FC = () => {
                   top: '100%',
                   left: 0,
                   right: 0,
-                  backgroundColor: '#ffffff',
+                  backgroundColor: currentTheme.colors.dropdownBg,
                   border: `1px solid ${currentTheme.colors.border}`,
-                  borderRadius: '4px',
+                  borderRadius: '8px',
                   zIndex: 1000,
                   marginTop: '5px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                  boxShadow: `0 4px 12px rgba(0,0,0,0.3), 0 0 8px ${currentTheme.colors.border}`
                 }}>
-                  <div style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
+                  <div style={{ padding: '10px', borderBottom: `1px solid ${currentTheme.colors.border}` }}>
                     <input
                       ref={majorInputRef}
                       type="text"
@@ -5038,10 +6225,12 @@ const App: React.FC = () => {
                       style={{
                         width: '100%',
                         padding: '6px 10px',
-                        border: '1px solid #ddd',
+                        border: `1px solid ${currentTheme.colors.border}`,
                         borderRadius: '4px',
                         fontSize: '13px',
                         outline: 'none',
+                        background: currentTheme.colors.dropdownButtonBg,
+                        color: currentTheme.colors.text,
                         boxSizing: 'border-box'
                       }}
                     />
@@ -5051,16 +6240,16 @@ const App: React.FC = () => {
                     overflowY: 'auto',
                     padding: '8px 10px'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #f0f0f0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px', paddingBottom: '8px', borderBottom: `1px solid ${currentTheme.colors.border}` }}>
                       <input
                         type="checkbox"
                         checked={filters.major.length === majorOptions.length && majorOptions.length > 0}
                         onChange={handleMajorSelectAll}
                         style={{ cursor: 'pointer' }}
                       />
-                      <span style={{ fontSize: '12px', fontWeight: '500', color: '#333' }}>全选/取消全选</span>
+                      <span style={{ fontSize: '12px', fontWeight: '500', color: currentTheme.colors.text }}>全选/取消全选</span>
                       {filters.major.length > 1 && (
-                        <span style={{ fontSize: '11px', color: '#ff6b81', marginLeft: 'auto' }}>({filters.major.length}项已选)</span>
+                        <span style={{ fontSize: '11px', color: currentTheme.colors.primary, marginLeft: 'auto' }}>({filters.major.length}项已选)</span>
                       )}
                     </div>
                     {filteredMajorOptions.length > 0 ? (
@@ -5090,13 +6279,13 @@ const App: React.FC = () => {
                           />
                           <span style={{
                             fontSize: '13px',
-                            color: filters.major.includes(option) ? '#ff6b81' : '#333',
+                            color: filters.major.includes(option) ? currentTheme.colors.primary : currentTheme.colors.text,
                             fontWeight: filters.major.includes(option) ? '500' : '400'
                           }}>{option}</span>
                         </label>
                       ))
                     ) : (
-                      <div style={{ textAlign: 'center', color: '#999', fontSize: '13px', padding: '10px 0' }}>
+                      <div style={{ textAlign: 'center', color: currentTheme.colors.textSecondary, fontSize: '13px', padding: '10px 0' }}>
                         {majorSearchText ? '未找到匹配的专业' : (majorOptions.length > 0 ? '暂无专业选项' : '请先导入数据')}
                       </div>
                     )}
@@ -5104,10 +6293,10 @@ const App: React.FC = () => {
                   {majorSearchText && filteredMajorOptions.length > 0 && (
                     <div style={{
                       padding: '6px 10px',
-                      borderTop: '1px solid #eee',
-                      backgroundColor: '#fafafa',
+                      borderTop: `1px solid ${currentTheme.colors.border}`,
+                      backgroundColor: currentTheme.colors.dropdownButtonBg,
                       fontSize: '11px',
-                      color: '#666'
+                      color: currentTheme.colors.textSecondary
                     }}>
                       找到 {filteredMajorOptions.length} 个匹配项 {selectedMajorIndex >= 0 && `(↑↓选择, Enter确认)`}
                     </div>
@@ -5195,7 +6384,7 @@ const App: React.FC = () => {
                 top: '100%',
                 left: 0,
                 right: 0,
-                backgroundColor: '#ffffff',
+                backgroundColor: currentTheme.colors.dropdownBg,
                 border: `1px solid ${currentTheme.colors.border}`,
                 borderRadius: '4px',
                 maxHeight: showCertDropdown && filteredCertOptions.length > 0 ? '200px' : '0',
@@ -5203,7 +6392,7 @@ const App: React.FC = () => {
                 overflowY: 'auto',
                 zIndex: 1000,
                 marginTop: '5px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                boxShadow: `0 2px 4px rgba(0,0,0,0.1), 0 0 8px ${currentTheme.colors.border}`,
                 transition: 'max-height 0.25s ease-in-out, opacity 0.25s ease-in-out'
               }}
               onMouseLeave={() => setShowCertDropdown(false)}
@@ -5247,22 +6436,23 @@ const App: React.FC = () => {
                     style={{
                       padding: '10px',
                       cursor: 'pointer',
-                      backgroundColor: index === selectedCertIndex ? '#ffb3ba' : 'transparent',
+                      backgroundColor: index === selectedCertIndex ? currentTheme.colors.accent : 'transparent',
+                      color: currentTheme.colors.text,
                       transition: 'background-color 0.2s ease'
                     }}
                     onMouseEnter={() => setSelectedCertIndex(index)}
                     onMouseOver={() => setSelectedCertIndex(index)}
                   >
                     {matchIndex >= 0 ? (
-                      <span>
+                      <span style={{ color: currentTheme.colors.text }}>
                         {certOriginal.substring(0, matchIndex)}
-                        <span style={{ backgroundColor: '#ff6b81', color: '#ffffff' }}>
+                        <span style={{ backgroundColor: currentTheme.colors.primary, color: '#ffffff' }}>
                           {certOriginal.substring(matchIndex, matchIndex + matchLength)}
                         </span>
                         {certOriginal.substring(matchIndex + matchLength)}
                       </span>
                     ) : (
-                      certOriginal
+                      <span style={{ color: currentTheme.colors.text }}>{certOriginal}</span>
                     )}
                   </div>
                 );
@@ -5353,8 +6543,13 @@ const App: React.FC = () => {
       )}
 
       {showAdminPanel ? (
-        <div className="card">
-          <h2>后台管理</h2>
+        <div className="card" style={{
+          backgroundColor: currentTheme.colors.surface,
+          border: `1px solid ${currentTheme.colors.border}`,
+          borderRadius: '12px',
+          padding: '24px'
+        }}>
+          <h2 style={{ color: currentTheme.colors.primary, marginTop: 0 }}>后台管理</h2>
           
           {/* 用户账户管理 */}
           <div style={{ marginBottom: '24px' }}>
@@ -5383,7 +6578,7 @@ const App: React.FC = () => {
             <div style={{
               maxHeight: '300px',
               overflowY: 'auto',
-              backgroundColor: '#f8f9fa',
+              backgroundColor: currentTheme.colors.dropdownButtonBg,
               padding: '16px',
               borderRadius: '8px',
               border: `1px solid ${currentTheme.colors.border}`
@@ -5392,18 +6587,18 @@ const App: React.FC = () => {
                 <div key={user.id} style={{
                   marginBottom: '12px',
                   padding: '12px',
-                  backgroundColor: '#ffffff',
+                  backgroundColor: currentTheme.colors.surface,
                   borderRadius: '4px',
                   border: `1px solid ${currentTheme.colors.border}`,
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center'
                 }}>
-                  <div>
-                    <p><strong>用户名:</strong> {user.username}</p>
-                    <p><strong>角色:</strong> {user.role === 'admin' ? '管理员' : '普通成员'}</p>
-                    <p><strong>状态:</strong> {user.enabled ? '启用' : '禁用'}</p>
-                    <p><strong>创建时间:</strong> {user.createdAt instanceof Date ? user.createdAt.toLocaleString() : (user.createdAt ? new Date(user.createdAt).toLocaleString() : '未知')}</p>
+                  <div style={{ color: currentTheme.colors.text }}>
+                    <p style={{ margin: '4px 0' }}><strong style={{ color: currentTheme.colors.textSecondary }}>用户名:</strong> {user.username}</p>
+                    <p style={{ margin: '4px 0' }}><strong style={{ color: currentTheme.colors.textSecondary }}>角色:</strong> {user.role === 'admin' ? '管理员' : '普通成员'}</p>
+                    <p style={{ margin: '4px 0' }}><strong style={{ color: currentTheme.colors.textSecondary }}>状态:</strong> {user.enabled ? '启用' : '禁用'}</p>
+                    <p style={{ margin: '4px 0' }}><strong style={{ color: currentTheme.colors.textSecondary }}>创建时间:</strong> {user.createdAt instanceof Date ? user.createdAt.toLocaleString() : (user.createdAt ? new Date(user.createdAt).toLocaleString() : '未知')}</p>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
                     <button
@@ -5492,17 +6687,17 @@ const App: React.FC = () => {
           {/* 用户角色管理 */}
           <div style={{ marginBottom: '24px' }}>
             <h3>当前角色管理</h3>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px', color: currentTheme.colors.text }}>
               <span>当前角色: </span>
               <button
                 type="button"
                 onClick={() => handleRoleChange('admin')}
                 style={{
                   padding: '6px 12px',
-                  border: userRole === 'admin' ? `1px solid ${currentTheme.colors.primary}` : '1px solid #ddd',
+                  border: userRole === 'admin' ? `1px solid ${currentTheme.colors.primary}` : `1px solid ${currentTheme.colors.border}`,
                   borderRadius: '4px',
-                  backgroundColor: userRole === 'admin' ? currentTheme.colors.primary : '#ffffff',
-                  color: userRole === 'admin' ? '#ffffff' : '#000000',
+                  backgroundColor: userRole === 'admin' ? currentTheme.colors.primary : currentTheme.colors.dropdownButtonBg,
+                  color: userRole === 'admin' ? currentTheme.colors.background : currentTheme.colors.text,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease'
                 }}
@@ -5514,10 +6709,10 @@ const App: React.FC = () => {
                 onClick={() => handleRoleChange('member')}
                 style={{
                   padding: '6px 12px',
-                  border: userRole === 'member' ? `1px solid ${currentTheme.colors.primary}` : '1px solid #ddd',
+                  border: userRole === 'member' ? `1px solid ${currentTheme.colors.primary}` : `1px solid ${currentTheme.colors.border}`,
                   borderRadius: '4px',
-                  backgroundColor: userRole === 'member' ? currentTheme.colors.primary : '#ffffff',
-                  color: userRole === 'member' ? '#ffffff' : '#000000',
+                  backgroundColor: userRole === 'member' ? currentTheme.colors.primary : currentTheme.colors.dropdownButtonBg,
+                  color: userRole === 'member' ? currentTheme.colors.background : currentTheme.colors.text,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease'
                 }}
@@ -5531,10 +6726,10 @@ const App: React.FC = () => {
                 onClick={() => setShowPasswordModal(true)}
                 style={{
                   padding: '6px 12px',
-                  border: '1px solid #4CAF50',
+                  border: `1px solid ${currentTheme.colors.success}`,
                   borderRadius: '4px',
-                  backgroundColor: '#4CAF50',
-                  color: '#ffffff',
+                  backgroundColor: currentTheme.colors.success,
+                  color: currentTheme.colors.background,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease'
                 }}
@@ -5696,27 +6891,27 @@ const App: React.FC = () => {
                   <div style={{
                     maxHeight: '400px',
                     overflowY: 'auto',
-                    backgroundColor: '#f8f9fa',
+                    backgroundColor: currentTheme.colors.tableBg || currentTheme.colors.surface,
                     padding: '16px',
                     borderRadius: '8px',
                     border: `1px solid ${currentTheme.colors.border}`
                   }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
-                        <tr style={{ backgroundColor: currentTheme.colors.primary }}>
-                          <th style={{ padding: '8px', textAlign: 'center', border: `1px solid ${currentTheme.colors.border}`, width: '50px', color: '#ffffff' }}>
+                        <tr style={{ backgroundColor: currentTheme.colors.tableHeaderBg || currentTheme.colors.primary }}>
+                          <th style={{ padding: '8px', textAlign: 'center', border: `1px solid ${currentTheme.colors.border}`, width: '50px', color: currentTheme.colors.text }}>
                             <input
                               type="checkbox"
                               checked={people.length > 0 && selectedPeople.length === people.length}
                               onChange={(e) => handleSelectAll(e.target.checked)}
                             />
                           </th>
-                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>工号</th>
-                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>姓名</th>
-                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>年龄</th>
-                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>学历</th>
-                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>证书</th>
-                          <th style={{ padding: '8px', textAlign: 'center', border: `1px solid ${currentTheme.colors.border}`, width: '80px', color: '#ffffff', fontWeight: 'bold' }}>操作</th>
+                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold' }}>工号</th>
+                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold' }}>姓名</th>
+                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold' }}>年龄</th>
+                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold' }}>学历</th>
+                          <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold' }}>证书</th>
+                          <th style={{ padding: '8px', textAlign: 'center', border: `1px solid ${currentTheme.colors.border}`, width: '80px', color: currentTheme.colors.text, fontWeight: 'bold' }}>操作</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -5735,9 +6930,12 @@ const App: React.FC = () => {
 
                           return paginatedData.map((person, index) => {
                             const enriched = (person as any)._certDisplay !== undefined ? person as EnrichedPerson : enrichPersonData(person);
+                            const rowBg = index % 2 === 0
+                              ? (currentTheme.colors.tableRowEven || 'transparent')
+                              : (currentTheme.colors.tableRowOdd || 'transparent');
 
                             return (
-                              <tr key={person.id} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }}>
+                              <tr key={person.id} style={{ backgroundColor: rowBg }}>
                                 <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, textAlign: 'center' }}>
                                   <input
                                     type="checkbox"
@@ -5745,11 +6943,11 @@ const App: React.FC = () => {
                                     onChange={() => handlePersonSelect(person.id)}
                                   />
                                 </td>
-                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>{person.employeeId || '-'}</td>
-                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>{person.name || '-'}</td>
-                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>{getPersonAge(person) || '-'}</td>
-                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>{person.education || '-'}</td>
-                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>
+                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>{person.employeeId || '-'}</td>
+                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>{person.name || '-'}</td>
+                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>{getPersonAge(person) || '-'}</td>
+                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>{person.education || '-'}</td>
+                                <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>
                                   {enriched._certDisplay || '无'}
                                 </td>
                                 <td style={{ padding: '8px', border: `1px solid ${currentTheme.colors.border}`, textAlign: 'center' }}>
@@ -5758,9 +6956,9 @@ const App: React.FC = () => {
                                     onClick={() => handlePersonDelete(person.id, person.name)}
                                     style={{
                                       padding: '2px 6px',
-                                      border: `1px solid ${currentTheme.colors.primary}`,
+                                      border: `1px solid ${currentTheme.colors.danger}`,
                                       borderRadius: '4px',
-                                      backgroundColor: currentTheme.colors.primary,
+                                      backgroundColor: currentTheme.colors.danger,
                                       color: '#ffffff',
                                       cursor: 'pointer',
                                       fontSize: '10px'
@@ -5778,11 +6976,11 @@ const App: React.FC = () => {
                   </div>
                   {/* 分页控件 */}
                   {people.length > pageSize && (
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'center', 
-                      alignItems: 'center', 
-                      gap: '10px', 
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      gap: '10px',
                       marginTop: '16px',
                       padding: '10px'
                     }}>
@@ -5793,14 +6991,14 @@ const App: React.FC = () => {
                           padding: '6px 12px',
                           border: `1px solid ${currentTheme.colors.primary}`,
                           borderRadius: '4px',
-                          backgroundColor: currentPage === 1 ? '#f0f0f0' : currentTheme.colors.primary,
-                          color: currentPage === 1 ? '#999' : '#ffffff',
+                          backgroundColor: currentPage === 1 ? currentTheme.colors.dropdownButtonBg : currentTheme.colors.primary,
+                          color: currentPage === 1 ? currentTheme.colors.textSecondary : currentTheme.colors.background,
                           cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
                         }}
                       >
                         上一页
                       </button>
-                      <span style={{ fontSize: '14px' }}>
+                      <span style={{ fontSize: '14px', color: currentTheme.colors.text }}>
                         第 {currentPage} 页 / 共 {Math.ceil(people.length / pageSize)} 页 (共 {people.length} 条)
                       </span>
                       <button
@@ -5810,8 +7008,8 @@ const App: React.FC = () => {
                           padding: '6px 12px',
                           border: `1px solid ${currentTheme.colors.primary}`,
                           borderRadius: '4px',
-                          backgroundColor: currentPage >= Math.ceil(people.length / pageSize) ? '#f0f0f0' : currentTheme.colors.primary,
-                          color: currentPage >= Math.ceil(people.length / pageSize) ? '#999' : '#ffffff',
+                          backgroundColor: currentPage >= Math.ceil(people.length / pageSize) ? currentTheme.colors.dropdownButtonBg : currentTheme.colors.primary,
+                          color: currentPage >= Math.ceil(people.length / pageSize) ? currentTheme.colors.textSecondary : currentTheme.colors.background,
                           cursor: currentPage >= Math.ceil(people.length / pageSize) ? 'not-allowed' : 'pointer'
                         }}
                       >
@@ -5826,41 +7024,44 @@ const App: React.FC = () => {
           
           {/* 后台日志 */}
           <div>
-            <h3>后台日志</h3>
+            <h3 style={{ color: currentTheme.colors.primary }}>后台日志</h3>
             <div style={{
               maxHeight: '400px',
               overflowY: 'auto',
-              backgroundColor: '#f8f9fa',
+              backgroundColor: currentTheme.colors.tableBg || currentTheme.colors.surface,
               padding: '16px',
               borderRadius: '8px',
               border: `1px solid ${currentTheme.colors.border}`
             }}>
               {logs.length > 0 ? (
                 logs.map((log, index) => (
-                  <p key={index} style={{ marginBottom: '8px', fontSize: '14px' }}>
+                  <p key={index} style={{ marginBottom: '8px', fontSize: '14px', color: currentTheme.colors.text }}>
                     {log}
                   </p>
                 ))
               ) : (
-                <p>暂无日志记录</p>
+                <p style={{ color: currentTheme.colors.textSecondary }}>暂无日志记录</p>
               )}
             </div>
           </div>
         </div>
       ) : (
-        <div className="card" style={{ border: `1px solid ${currentTheme.colors.border}` }}>
+        <div className="card" style={{
+          border: `1px solid ${currentTheme.colors.border}`,
+          backgroundColor: currentTheme.colors.tableBg || currentTheme.colors.surface
+        }}>
           <h2 style={{ color: currentTheme.colors.primary }}>查询结果</h2>
           {filteredPeople.length > 0 ? (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ backgroundColor: currentTheme.colors.primary }}>
-                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>工号</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>姓名</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>年龄</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>学历</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>专业</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: '#ffffff', fontWeight: 'bold' }}>证书</th>
+                  <tr style={{ backgroundColor: currentTheme.colors.tableHeaderBg || currentTheme.colors.primary }}>
+                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold' }}>工号</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold' }}>姓名</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold' }}>年龄</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold' }}>学历</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold' }}>专业</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold' }}>证书</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -5879,15 +7080,18 @@ const App: React.FC = () => {
 
                     return paginatedData.map((person, index) => {
                       const enriched = (person as any)._certDisplay !== undefined ? person as EnrichedPerson : enrichPersonData(person, filters.certificate);
+                      const rowBg = index % 2 === 0
+                        ? (currentTheme.colors.tableRowEven || '#ffffff')
+                        : (currentTheme.colors.tableRowOdd || '#f8f9fa');
 
                       return (
-                        <tr key={person.id} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }}>
-                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>{person.employeeId || '-'}</td>
-                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>{person.name || '-'}</td>
-                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>{getPersonAge(person) || '-'}</td>
-                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>{person.education || '-'}</td>
-                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>{person.major || '-'}</td>
-                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: '#333' }}>
+                        <tr key={person.id} style={{ backgroundColor: rowBg }}>
+                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>{person.employeeId || '-'}</td>
+                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>{person.name || '-'}</td>
+                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>{getPersonAge(person) || '-'}</td>
+                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>{person.education || '-'}</td>
+                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>{person.major || '-'}</td>
+                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>
                             {enriched._certDisplay || '无'}
                           </td>
                         </tr>
@@ -5898,7 +7102,7 @@ const App: React.FC = () => {
               </table>
             </div>
           ) : (
-            <p style={{ textAlign: 'center', padding: '20px', color: '#666' }}>没有找到匹配的人员</p>
+            <p style={{ textAlign: 'center', padding: '20px', color: currentTheme.colors.textSecondary }}>没有找到匹配的人员</p>
           )}
           {/* 筛选结果分页控件 */}
           {filteredPeople.length > 0 && (
@@ -6135,143 +7339,10 @@ const App: React.FC = () => {
       
       {/* 密码修改模态框 */}
       {showPasswordModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000
-        }}>
-          <div style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '8px',
-            padding: '20px',
-            maxWidth: '400px',
-            width: '90%',
-            boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-            border: `2px solid ${currentTheme.colors.border}`
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '20px'
-            }}>
-              <h3 style={{ margin: 0, color: '#5a3d31' }}>修改密码</h3>
-              <button
-                onClick={() => {
-                  setShowPasswordModal(false);
-                  setCurrentPassword('');
-                  setNewPassword('');
-                  setConfirmPassword('');
-                  setPasswordError('');
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '20px',
-                  cursor: 'pointer',
-                  color: '#999'
-                }}
-              >
-                ×
-              </button>
-            </div>
-            {passwordError && (
-              <p style={{ color: '#ff6b81', fontSize: '12px', marginBottom: '16px' }}>{passwordError}</p>
-            )}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                当前密码
-              </label>
-              <input
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
-                }}
-              />
-            </div>
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                新密码
-              </label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
-                }}
-              />
-              <p style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
-                密码长度至少6位，包含至少一个数字和一个字母
-              </p>
-            </div>
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                确认新密码
-              </label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
-                }}
-              />
-            </div>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => {
-                  setShowPasswordModal(false);
-                  setCurrentPassword('');
-                  setNewPassword('');
-                  setConfirmPassword('');
-                  setPasswordError('');
-                }}
-                style={{
-                  padding: '8px 16px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
-                  backgroundColor: '#ffffff',
-                  color: '#000000',
-                  cursor: 'pointer'
-                }}
-              >
-                取消
-              </button>
-              <button
-                onClick={handlePasswordChange}
-                style={{
-                  padding: '8px 16px',
-                  border: '1px solid #4CAF50',
-                  borderRadius: '4px',
-                  backgroundColor: '#4CAF50',
-                  color: '#ffffff',
-                  cursor: 'pointer'
-                }}
-              >
-                确认修改
-              </button>
-            </div>
-          </div>
-        </div>
+        <PasswordChanger
+          username={username}
+          onClose={() => setShowPasswordModal(false)}
+        />
       )}
       
       {/* 权限编辑模态框 */}

@@ -7,6 +7,7 @@ export interface User {
   enabled: boolean;
   createdAt: Date;
   lastPasswordChange?: Date;
+  avatar?: string;
   permissions?: {
     fileUpload: boolean;
     search: boolean;
@@ -47,8 +48,8 @@ const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  // 默认使用本地后端
-  return 'http://localhost:3001/api';
+  // 默认使用生产环境后端
+  return 'https://xuanren-1.onrender.com/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -57,6 +58,31 @@ const API_BASE_URL = getApiBaseUrl();
 const LOCAL_STORAGE_KEYS = {
   CURRENT_DATASET: 'renyuan_current_dataset',
 };
+
+// 带超时的 fetch 辅助函数（Render 免费版需要60秒冷启动时间）
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs: number = 60000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error(`请求超时（${timeoutMs}ms），服务器可能正在冷启动，请稍后重试`);
+    }
+    throw error;
+  }
+}
 
 // snake_case 转 camelCase
 function toCamelCase(obj: any): any {
@@ -104,7 +130,7 @@ export const storageService = {
 
   getAllUsers: async (): Promise<User[]> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users`);
+      const response = await fetchWithTimeout(`${API_BASE_URL}/users`);
       if (!response.ok) throw new Error('Failed to fetch users');
       const users = await response.json();
       return toCamelCase(users);
@@ -116,7 +142,7 @@ export const storageService = {
 
   createUser: async (userData: Omit<User, 'id' | 'createdAt'>): Promise<User> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(toSnakeCase(userData))
@@ -132,7 +158,7 @@ export const storageService = {
 
   getUserById: async (id: string): Promise<User | null> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/${id}`);
+      const response = await fetchWithTimeout(`${API_BASE_URL}/users/${id}`);
       if (!response.ok) throw new Error('Failed to fetch user');
       const user = await response.json();
       return toCamelCase(user);
@@ -155,7 +181,7 @@ export const storageService = {
 
   updateUser: async (user: User): Promise<User> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/${user.id}`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/users/${user.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(toSnakeCase(user))
@@ -171,7 +197,7 @@ export const storageService = {
 
   deleteUser: async (id: string): Promise<void> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/${id}`, { method: 'DELETE' });
+      const response = await fetchWithTimeout(`${API_BASE_URL}/users/${id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Failed to delete user');
     } catch (e) {
       console.error('❌ 删除用户失败', e);
@@ -183,7 +209,7 @@ export const storageService = {
 
   getAllDataSets: async (): Promise<DataSet[]> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/datasets`);
+      const response = await fetchWithTimeout(`${API_BASE_URL}/datasets`);
       if (!response.ok) throw new Error('Failed to fetch datasets');
       const dataSets = await response.json();
       return toCamelCase(dataSets);
@@ -195,7 +221,7 @@ export const storageService = {
 
   createDataSet: async (dataSetData: Omit<DataSet, 'id' | 'createdAt'>): Promise<DataSet> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/datasets`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/datasets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -215,7 +241,7 @@ export const storageService = {
 
   getDataSetById: async (id: string): Promise<DataSet | null> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/datasets/${id}`);
+      const response = await fetchWithTimeout(`${API_BASE_URL}/datasets/${id}`);
       if (!response.ok) throw new Error('Failed to fetch dataset');
       const dataSet = await response.json();
       return toCamelCase(dataSet);
@@ -227,7 +253,7 @@ export const storageService = {
 
   deleteDataSet: async (id: string): Promise<void> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/datasets/${id}`, { method: 'DELETE' });
+      const response = await fetchWithTimeout(`${API_BASE_URL}/datasets/${id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Failed to delete dataset');
     } catch (e) {
       console.error('❌ 删除数据集失败', e);
@@ -266,7 +292,7 @@ export const storageService = {
         const batch = persons.slice(i, i + BATCH_SIZE);
         console.log(`📤 正在发送第 ${Math.floor(i / BATCH_SIZE) + 1} 批 (${batch.length} 条)...`);
 
-        const response = await fetch(`${API_BASE_URL}/persons/batch`, {
+        const response = await fetchWithTimeout(`${API_BASE_URL}/persons/batch`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -314,7 +340,7 @@ export const storageService = {
 
   getPersonsByDatasetId: async (datasetId: string): Promise<Person[]> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/persons/dataset/${datasetId}`);
+      const response = await fetchWithTimeout(`${API_BASE_URL}/persons/dataset/${datasetId}`);
       if (!response.ok) throw new Error('Failed to fetch persons');
 
       const rawPersons = await response.json();
@@ -353,7 +379,7 @@ export const storageService = {
 
   smartSearch: async (query: string, provider: string = 'deepseek', config?: any): Promise<any> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/ai/smart-search`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/ai/smart-search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
         body: JSON.stringify({ query, provider, config })
@@ -385,7 +411,7 @@ export const storageService = {
 
   getAIProviders: async (): Promise<any[]> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/ai/providers`);
+      const response = await fetchWithTimeout(`${API_BASE_URL}/ai/providers`);
       if (!response.ok) throw new Error('Failed to fetch providers');
       return await response.json();
     } catch (e) {

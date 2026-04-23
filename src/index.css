@@ -68,6 +68,48 @@ select:focus {
   box-shadow: 0 0 10px rgba(255, 107, 129, 0.3);
 }
 
+/* Placeholder 样式 */
+::placeholder {
+  color: inherit;
+  opacity: 0.6;
+}
+
+::-webkit-input-placeholder {
+  color: inherit;
+  opacity: 0.6;
+}
+
+::-moz-placeholder {
+  color: inherit;
+  opacity: 0.6;
+}
+
+:-ms-input-placeholder {
+  color: inherit;
+  opacity: 0.6;
+}
+
+/* AI 搜索 textarea placeholder */
+.ai-search-textarea::placeholder {
+  color: var(--placeholder-color, inherit);
+  opacity: 0.7;
+}
+
+.ai-search-textarea::-webkit-input-placeholder {
+  color: var(--placeholder-color, inherit);
+  opacity: 0.7;
+}
+
+.ai-search-textarea::-moz-placeholder {
+  color: var(--placeholder-color, inherit);
+  opacity: 0.7;
+}
+
+.ai-search-textarea:-ms-input-placeholder {
+  color: var(--placeholder-color, inherit);
+  opacity: 0.7;
+}
+
 button {
   background-color: #ff6b81;
   color: white;

@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => {
     base: isElectron ? './' : '/renyuan/',
     server: {
       port: 5175,
+      strictPort: true,  // 强制使用指定端口，如果被占用则报错而不是自动切换
       // Electron 环境下允许外部访问
       host: isElectron ? '127.0.0.1' : 'localhost'
     },

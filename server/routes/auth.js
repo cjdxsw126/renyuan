@@ -133,4 +133,45 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// 修改密码
+router.post('/change-password', async (req, res) => {
+  try {
+    const { username, oldPassword, newPassword } = req.body;
+
+    // 验证参数
+    if (!username || !oldPassword || !newPassword) {
+      return res.status(400).json({ message: '请提供用户名、旧密码和新密码' });
+    }
+
+    // 查找用户
+    const userResult = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: '用户不存在' });
+    }
+
+    const user = userResult.rows[0];
+
+    // 验证旧密码
+    const passwordMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!passwordMatch) {
+      return res.status(401).json({ message: '当前密码错误' });
+    }
+
+    // 哈希新密码
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // 更新密码
+    await pool.query(
+      'UPDATE users SET password = $1 WHERE id = $2',
+      [hashedPassword, user.id]
+    );
+
+    res.json({ message: '密码修改成功' });
+  } catch (error) {
+    console.error('修改密码错误:', error);
+    res.status(500).json({ message: '服务器内部错误，请稍后重试' });
+  }
+});
+
 module.exports = router;

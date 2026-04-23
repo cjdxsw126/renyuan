@@ -29,12 +29,23 @@ export interface Theme {
     accent: string;
     background: string;
     surface: string;
+    dropdownBg: string;
+    dropdownButtonBg: string;
     text: string;
     textSecondary: string;
     border: string;
     success: string;
     warning: string;
     danger: string;
+    // AI搜索和结果表格特定颜色
+    aiSearchBg?: string;
+    aiSearchBorder?: string;
+    aiSearchText?: string;
+    aiSearchPlaceholder?: string;
+    tableBg?: string;
+    tableHeaderBg?: string;
+    tableRowEven?: string;
+    tableRowOdd?: string;
   };
   fonts: {
     heading: string;
@@ -62,6 +73,8 @@ export const themes: Record<ThemeType, Theme> = {
       accent: '#ff8a9b',
       background: '#ffffff',
       surface: '#f8f9fa',
+      dropdownBg: '#ffffff',
+      dropdownButtonBg: '#f8f9fa',
       text: '#333333',
       textSecondary: '#666666',
       border: '#e0e0e0',
@@ -109,12 +122,23 @@ export const themes: Record<ThemeType, Theme> = {
       accent: '#ff6b35',
       background: '#0a1628',
       surface: 'rgba(13, 31, 53, 0.8)',
+      dropdownBg: '#0d1f35',
+      dropdownButtonBg: '#1a3a5c',
       text: '#e0f7ff',
       textSecondary: '#8ba3b8',
       border: 'rgba(0, 212, 255, 0.3)',
       success: '#27ae60',
       warning: '#f39c12',
       danger: '#ff2d55',
+      // AI搜索和结果表格特定颜色 - 100%复刻预览图
+      aiSearchBg: 'rgba(0, 0, 0, 0.3)',
+      aiSearchBorder: 'rgba(0, 212, 255, 0.3)',
+      aiSearchText: '#e0f7ff',
+      aiSearchPlaceholder: '#8ba3b8',
+      tableBg: 'rgba(13, 31, 53, 0.8)',
+      tableHeaderBg: 'rgba(0, 212, 255, 0.1)',
+      tableRowEven: 'rgba(0, 0, 0, 0.2)',
+      tableRowOdd: 'transparent',
     },
     fonts: {
       heading: "'Orbitron', 'Microsoft YaHei', sans-serif",
@@ -151,17 +175,28 @@ export const themes: Record<ThemeType, Theme> = {
     nameEn: 'Chimera Ecology',
     description: '生物机械风格 - 原始生命力与危险',
     colors: {
-      primary: '#39ff14',
+      primary: '#2dd415',
       secondary: '#1a0a2e',
       accent: '#b829dd',
       background: '#0d0518',
       surface: 'rgba(26, 10, 46, 0.85)',
+      dropdownBg: '#1a0a2e',
+      dropdownButtonBg: '#2d1b4e',
       text: '#e0ffe0',
       textSecondary: '#8b9d8b',
       border: 'rgba(184, 41, 221, 0.4)',
-      success: '#39ff14',
+      success: '#2dd415',
       warning: '#ffaa00',
       danger: '#ff006e',
+      // AI搜索和结果表格特定颜色
+      aiSearchBg: 'rgba(0, 0, 0, 0.3)',
+      aiSearchBorder: 'rgba(45, 212, 21, 0.3)',
+      aiSearchText: '#e0ffe0',
+      aiSearchPlaceholder: '#8b9d8b',
+      tableBg: 'rgba(26, 10, 46, 0.8)',
+      tableHeaderBg: 'rgba(45, 212, 21, 0.15)',
+      tableRowEven: 'rgba(0, 0, 0, 0.2)',
+      tableRowOdd: 'transparent',
     },
     fonts: {
       heading: "'Rajdhani', 'Microsoft YaHei', sans-serif",
@@ -203,12 +238,23 @@ export const themes: Record<ThemeType, Theme> = {
       accent: '#ffaa00',
       background: '#0f0f1a',
       surface: 'rgba(26, 26, 46, 0.9)',
+      dropdownBg: '#1a1a2e',
+      dropdownButtonBg: '#2a2a3e',
       text: '#fff8e7',
       textSecondary: '#b8a88a',
       border: 'rgba(255, 215, 0, 0.3)',
       success: '#ffd700',
       warning: '#ffaa00',
       danger: '#ff6b6b',
+      // AI搜索和结果表格特定颜色
+      aiSearchBg: 'rgba(0, 0, 0, 0.3)',
+      aiSearchBorder: 'rgba(255, 215, 0, 0.3)',
+      aiSearchText: '#fff8e7',
+      aiSearchPlaceholder: '#b8a88a',
+      tableBg: 'rgba(26, 26, 46, 0.8)',
+      tableHeaderBg: 'rgba(255, 215, 0, 0.1)',
+      tableRowEven: 'rgba(0, 0, 0, 0.2)',
+      tableRowOdd: 'transparent',
     },
     fonts: {
       heading: "'Cinzel', 'SimSun', 'Microsoft YaHei', serif",

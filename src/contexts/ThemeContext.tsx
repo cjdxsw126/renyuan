@@ -11,7 +11,16 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [themeId, setThemeId] = useState<ThemeType>(defaultTheme);
+  // 从 localStorage 读取保存的主题，如果没有则使用默认主题
+  const [themeId, setThemeId] = useState<ThemeType>(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('user-theme') as ThemeType;
+      if (savedTheme && ['classic', 'lighthouse', 'chimera', 'mana'].includes(savedTheme)) {
+        return savedTheme;
+      }
+    }
+    return defaultTheme;
+  });
   const [isThemeLoading, setIsThemeLoading] = useState(false);
 
   const currentTheme = getTheme(themeId);
@@ -25,6 +34,9 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     
     setIsThemeLoading(true);
     setThemeId(newThemeId);
+    
+    // 保存到 localStorage
+    localStorage.setItem('user-theme', newThemeId);
     
     // Apply theme to document immediately
     applyThemeToDocument(newThemeId);
