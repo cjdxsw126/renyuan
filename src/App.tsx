@@ -1571,7 +1571,7 @@ const App: React.FC = () => {
     }));
   };
 
-  // 从服务器加载用户特定的API配置（仅在挂载时执行一次）
+  // 从服务器加载用户特定的API配置（在登录状态或用户名变化时执行）
   useEffect(() => {
     const loadUserApiKeys = async () => {
       try {
@@ -1580,8 +1580,13 @@ const App: React.FC = () => {
         const userApiKeys = await userApiKeyService.getAllApiKeys();
         
         if (Object.keys(userApiKeys).length > 0) {
-          // 从服务器加载到本地状态
-          const newConfigs = { ...aiConfigs };
+          // 从服务器加载到本地状态 - 使用空配置作为基础，确保不会残留其他用户的数据
+          const newConfigs = {
+            deepseek: { apiKey: '', baseUrl: '', model: '' },
+            qwen: { apiKey: '', baseUrl: '', model: '' },
+            doubao: { apiKey: '', baseUrl: '', model: '' },
+            custom: { apiKey: '', baseUrl: '', model: '' }
+          };
           Object.entries(userApiKeys).forEach(([provider, config]) => {
             if (newConfigs[provider as keyof typeof newConfigs]) {
               newConfigs[provider as keyof typeof newConfigs] = {
@@ -1594,44 +1599,32 @@ const App: React.FC = () => {
           setAiConfigs(newConfigs);
           setAiConfigSaved(true);
         } else {
-          // 服务器没有数据，尝试从本地加载（向后兼容）
-          const savedConfig = storageService.getAIConfig();
-          if (savedConfig) {
-            if (savedConfig.provider) setAiProvider(savedConfig.provider);
-            if (savedConfig.aiConfigs) {
-              setAiConfigs(savedConfig.aiConfigs);
-            } else if (savedConfig.apiKey) {
-              const oldProvider = savedConfig.provider || 'deepseek';
-              setAiConfigs(prev => ({
-                ...prev,
-                [oldProvider]: {
-                  apiKey: savedConfig.apiKey || '',
-                  baseUrl: savedConfig.baseUrl || '',
-                  model: savedConfig.model || ''
-                }
-              }));
-            }
-            setAiConfigSaved(true);
-          }
+          // 服务器没有数据，保持空状态（不加载本地缓存，避免用户间数据混淆）
+          setAiConfigs({
+            deepseek: { apiKey: '', baseUrl: '', model: '' },
+            qwen: { apiKey: '', baseUrl: '', model: '' },
+            doubao: { apiKey: '', baseUrl: '', model: '' },
+            custom: { apiKey: '', baseUrl: '', model: '' }
+          });
+          setAiConfigSaved(false);
         }
       } catch (error) {
         console.error('加载用户API密钥失败:', error);
-        // 失败时回退到本地存储
-        const savedConfig = storageService.getAIConfig();
-        if (savedConfig) {
-          if (savedConfig.provider) setAiProvider(savedConfig.provider);
-          if (savedConfig.aiConfigs) {
-            setAiConfigs(savedConfig.aiConfigs);
-          }
-          setAiConfigSaved(true);
-        }
+        // 失败时重置为空状态，避免显示错误数据
+        setAiConfigs({
+          deepseek: { apiKey: '', baseUrl: '', model: '' },
+          qwen: { apiKey: '', baseUrl: '', model: '' },
+          doubao: { apiKey: '', baseUrl: '', model: '' },
+          custom: { apiKey: '', baseUrl: '', model: '' }
+        });
+        setAiConfigSaved(false);
       }
     };
     
-    if (isLoggedIn) {
+    if (isLoggedIn && username) {
       loadUserApiKeys();
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, username]);
 
   // 防抖自动保存AI配置到服务器（用户特定的API密钥）
   useEffect(() => {
@@ -2823,6 +2816,15 @@ const App: React.FC = () => {
         throw new Error('登录响应中缺少用户信息');
       }
 
+      // 先重置AI配置状态，防止前一个用户的配置残留
+      setAiConfigs({
+        deepseek: { apiKey: '', baseUrl: '', model: '' },
+        qwen: { apiKey: '', baseUrl: '', model: '' },
+        doubao: { apiKey: '', baseUrl: '', model: '' },
+        custom: { apiKey: '', baseUrl: '', model: '' }
+      });
+      setAiConfigSaved(false);
+
       setIsLoggedIn(true);
       setUserRole(user.role || 'member');
       setError('');
@@ -2860,6 +2862,16 @@ const App: React.FC = () => {
     setPassword('');
     setUserRole('admin'); // 重置为默认角色
     setShowAdminPanel(false);
+    // 重置AI配置，防止不同用户间共享API KEY
+    setAiConfigs({
+      deepseek: { apiKey: '', baseUrl: '', model: '' },
+      qwen: { apiKey: '', baseUrl: '', model: '' },
+      doubao: { apiKey: '', baseUrl: '', model: '' },
+      custom: { apiKey: '', baseUrl: '', model: '' }
+    });
+    setAiConfigSaved(false);
+    // 清除localStorage中的token
+    localStorage.removeItem('token');
   };
 
   // 处理学历复选框变更

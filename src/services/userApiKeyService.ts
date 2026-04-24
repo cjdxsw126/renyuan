@@ -3,8 +3,12 @@ const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  // Use localhost for local development
-  return 'http://localhost:3001/api';
+  // Use cloud backend for production, localhost for development
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:3001/api';
+  }
+  // GitHub Pages uses cloud backend
+  return 'https://xuanren-1.onrender.com/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
