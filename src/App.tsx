@@ -1543,8 +1543,6 @@ const App: React.FC = () => {
     doubao: { apiKey: '', baseUrl: '', model: '' },
     custom: { apiKey: '', baseUrl: '', model: '' }
   });
-  const [aiConfigSaved, setAiConfigSaved] = useState<boolean>(false);
-
   // 获取当前选中模型的配置
   const currentAiConfig = aiConfigs[aiProvider as keyof typeof aiConfigs];
   const aiApiKey = currentAiConfig.apiKey;
@@ -1597,7 +1595,6 @@ const App: React.FC = () => {
             }
           });
           setAiConfigs(newConfigs);
-          setAiConfigSaved(true);
         } else {
           // 服务器没有数据，保持空状态（不加载本地缓存，避免用户间数据混淆）
           setAiConfigs({
@@ -1606,7 +1603,6 @@ const App: React.FC = () => {
             doubao: { apiKey: '', baseUrl: '', model: '' },
             custom: { apiKey: '', baseUrl: '', model: '' }
           });
-          setAiConfigSaved(false);
         }
       } catch (error) {
         console.error('加载用户API密钥失败:', error);
@@ -1617,7 +1613,6 @@ const App: React.FC = () => {
           doubao: { apiKey: '', baseUrl: '', model: '' },
           custom: { apiKey: '', baseUrl: '', model: '' }
         });
-        setAiConfigSaved(false);
       }
     };
     
@@ -1626,43 +1621,27 @@ const App: React.FC = () => {
     }
   }, [isLoggedIn, username]);
 
-  // 防抖自动保存AI配置到服务器（用户特定的API密钥）
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (!isLoggedIn) return;
+  // 手动保存AI配置到服务器
+  const handleSaveAIConfig = async () => {
+    if (!isLoggedIn) return;
+    
+    try {
+      const { userApiKeyService } = await import('./services/userApiKeyService');
       
-      try {
-        // 保存到本地存储（作为缓存）
-        const config = { 
-          provider: aiProvider, 
-          aiConfigs,
-          apiKey: aiApiKey,
-          baseUrl: aiBaseUrl,
-          model: aiModel
-        };
-        storageService.saveAIConfig(config);
-        
-        // 同时保存到服务器（用户特定的API密钥）
-        const { userApiKeyService } = await import('./services/userApiKeyService');
-        
-        // 保存当前选中的provider的配置
-        if (aiApiKey) {
-          await userApiKeyService.saveApiKey(aiProvider, {
-            apiKey: aiApiKey,
-            baseUrl: aiBaseUrl,
-            model: aiModel
-          });
-        }
-        
-        setAiConfigSaved(true);
-      } catch (error) {
-        console.error('保存用户API密钥失败:', error);
-        // 即使服务器保存失败，本地缓存已更新
-        setAiConfigSaved(true);
-      }
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [aiProvider, aiConfigs, aiApiKey, aiBaseUrl, aiModel, isLoggedIn]);
+      // 保存当前选中的provider的配置
+      await userApiKeyService.saveApiKey(aiProvider, {
+        apiKey: aiApiKey,
+        baseUrl: aiBaseUrl,
+        model: aiModel
+      });
+
+      addLog(`AI配置已保存: ${aiProvider}`);
+      alert('API配置保存成功！');
+    } catch (error) {
+      console.error('保存用户API密钥失败:', error);
+      alert('保存失败，请稍后重试');
+    }
+  };
 
   // 记录日志
   const addLog = (message: string) => {
@@ -2823,7 +2802,6 @@ const App: React.FC = () => {
         doubao: { apiKey: '', baseUrl: '', model: '' },
         custom: { apiKey: '', baseUrl: '', model: '' }
       });
-      setAiConfigSaved(false);
 
       setIsLoggedIn(true);
       setUserRole(user.role || 'member');
@@ -2869,7 +2847,6 @@ const App: React.FC = () => {
       doubao: { apiKey: '', baseUrl: '', model: '' },
       custom: { apiKey: '', baseUrl: '', model: '' }
     });
-    setAiConfigSaved(false);
     // 清除localStorage中的token
     localStorage.removeItem('token');
   };
@@ -5127,9 +5104,22 @@ const App: React.FC = () => {
                     💡 提示：DeepSeek 可在 platform.deepseek.com 免费申请 API Key
                   </div>
                   <div style={{ marginTop: '10px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    {aiConfigSaved && (
-                      <span style={{ fontSize: '11px', color: '#52c41a' }}>✓ 配置已自动保存</span>
-                    )}
+                    {/* 保存配置按钮 */}
+                    <button
+                      type="button"
+                      onClick={handleSaveAIConfig}
+                      style={{
+                        fontSize: '12px',
+                        padding: '4px 12px',
+                        border: `1px solid ${currentTheme.colors.primary}`,
+                        borderRadius: '4px',
+                        background: currentTheme.colors.primary,
+                        color: '#fff',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      💾 保存配置
+                    </button>
                     {aiApiKey && (
                       <button
                         type="button"
@@ -5139,7 +5129,6 @@ const App: React.FC = () => {
                             ...prev,
                             [aiProvider]: { apiKey: '', baseUrl: '', model: '' }
                           }));
-                          setAiConfigSaved(false);
                         }}
                         style={{
                           fontSize: '11px',
