@@ -1125,9 +1125,16 @@ const UserThemeDropdown: React.FC<UserThemeDropdownProps> = ({ username, userRol
             setUserAvatar(avatar);
             // 保存到用户数据中
             if (currentUser) {
-              const updatedUser = { ...currentUser, avatar };
+              // 只发送必要的字段，避免意外修改其他数据
+              const updatedUser = {
+                id: currentUser.id,
+                username: currentUser.username,
+                role: currentUser.role,
+                enabled: currentUser.enabled,
+                avatar
+              };
               try {
-                await onUpdateUser(updatedUser);
+                await onUpdateUser(updatedUser as User);
               } catch (error) {
                 console.error('保存头像失败:', error);
               }
@@ -1564,46 +1571,105 @@ const App: React.FC = () => {
     }));
   };
 
-  // 从持久化存储加载AI配置（仅在挂载时执行一次）
+  // 从服务器加载用户特定的API配置（仅在挂载时执行一次）
   useEffect(() => {
-    const savedConfig = storageService.getAIConfig();
-    if (savedConfig) {
-      if (savedConfig.provider) setAiProvider(savedConfig.provider);
-      // 兼容旧格式和新格式
-      if (savedConfig.aiConfigs) {
-        setAiConfigs(savedConfig.aiConfigs);
-      } else if (savedConfig.apiKey) {
-        // 旧格式：只有一个apiKey，迁移到新格式
-        const oldProvider = savedConfig.provider || 'deepseek';
-        setAiConfigs(prev => ({
-          ...prev,
-          [oldProvider]: {
-            apiKey: savedConfig.apiKey || '',
-            baseUrl: savedConfig.baseUrl || '',
-            model: savedConfig.model || ''
+    const loadUserApiKeys = async () => {
+      try {
+        // 尝试从服务器加载用户特定的API密钥
+        const { userApiKeyService } = await import('./services/userApiKeyService');
+        const userApiKeys = await userApiKeyService.getAllApiKeys();
+        
+        if (Object.keys(userApiKeys).length > 0) {
+          // 从服务器加载到本地状态
+          const newConfigs = { ...aiConfigs };
+          Object.entries(userApiKeys).forEach(([provider, config]) => {
+            if (newConfigs[provider as keyof typeof newConfigs]) {
+              newConfigs[provider as keyof typeof newConfigs] = {
+                apiKey: config.apiKey || '',
+                baseUrl: config.baseUrl || '',
+                model: config.model || ''
+              };
+            }
+          });
+          setAiConfigs(newConfigs);
+          setAiConfigSaved(true);
+        } else {
+          // 服务器没有数据，尝试从本地加载（向后兼容）
+          const savedConfig = storageService.getAIConfig();
+          if (savedConfig) {
+            if (savedConfig.provider) setAiProvider(savedConfig.provider);
+            if (savedConfig.aiConfigs) {
+              setAiConfigs(savedConfig.aiConfigs);
+            } else if (savedConfig.apiKey) {
+              const oldProvider = savedConfig.provider || 'deepseek';
+              setAiConfigs(prev => ({
+                ...prev,
+                [oldProvider]: {
+                  apiKey: savedConfig.apiKey || '',
+                  baseUrl: savedConfig.baseUrl || '',
+                  model: savedConfig.model || ''
+                }
+              }));
+            }
+            setAiConfigSaved(true);
           }
-        }));
+        }
+      } catch (error) {
+        console.error('加载用户API密钥失败:', error);
+        // 失败时回退到本地存储
+        const savedConfig = storageService.getAIConfig();
+        if (savedConfig) {
+          if (savedConfig.provider) setAiProvider(savedConfig.provider);
+          if (savedConfig.aiConfigs) {
+            setAiConfigs(savedConfig.aiConfigs);
+          }
+          setAiConfigSaved(true);
+        }
       }
-      setAiConfigSaved(true);
+    };
+    
+    if (isLoggedIn) {
+      loadUserApiKeys();
     }
-  }, []);
+  }, [isLoggedIn]);
 
-  // 防抖自动保存AI配置
+  // 防抖自动保存AI配置到服务器（用户特定的API密钥）
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const config = { 
-        provider: aiProvider, 
-        aiConfigs,
-        // 同时保存当前选中的配置，便于快速访问
-        apiKey: aiApiKey,
-        baseUrl: aiBaseUrl,
-        model: aiModel
-      };
-      storageService.saveAIConfig(config);
-      setAiConfigSaved(true);
+    const timer = setTimeout(async () => {
+      if (!isLoggedIn) return;
+      
+      try {
+        // 保存到本地存储（作为缓存）
+        const config = { 
+          provider: aiProvider, 
+          aiConfigs,
+          apiKey: aiApiKey,
+          baseUrl: aiBaseUrl,
+          model: aiModel
+        };
+        storageService.saveAIConfig(config);
+        
+        // 同时保存到服务器（用户特定的API密钥）
+        const { userApiKeyService } = await import('./services/userApiKeyService');
+        
+        // 保存当前选中的provider的配置
+        if (aiApiKey) {
+          await userApiKeyService.saveApiKey(aiProvider, {
+            apiKey: aiApiKey,
+            baseUrl: aiBaseUrl,
+            model: aiModel
+          });
+        }
+        
+        setAiConfigSaved(true);
+      } catch (error) {
+        console.error('保存用户API密钥失败:', error);
+        // 即使服务器保存失败，本地缓存已更新
+        setAiConfigSaved(true);
+      }
     }, 800);
     return () => clearTimeout(timer);
-  }, [aiProvider, aiConfigs, aiApiKey, aiBaseUrl, aiModel]);
+  }, [aiProvider, aiConfigs, aiApiKey, aiBaseUrl, aiModel, isLoggedIn]);
 
   // 记录日志
   const addLog = (message: string) => {
@@ -1658,10 +1724,23 @@ const App: React.FC = () => {
   };
   
   // 处理用户更新（包括头像）
-  const handleUpdateUser = async (user: User): Promise<void> => {
+  const handleUpdateUser = async (user: Partial<User> & { id: string }): Promise<void> => {
     try {
-      await storageService.updateUser(user);
-      const updatedUsers = users.map(u => u.id === user.id ? user : u);
+      // 获取完整的用户数据
+      const existingUser = users.find(u => u.id === user.id);
+      if (!existingUser) {
+        throw new Error('用户不存在');
+      }
+      
+      // 合并数据，只更新提供的字段
+      // 重要：从 existingUser 中排除 password 字段，防止密码被重新哈希
+      const { password: existingPassword, ...existingUserWithoutPassword } = existingUser;
+      const { password: newPassword, ...userWithoutPassword } = user;
+      const fullUser = { ...existingUserWithoutPassword, ...userWithoutPassword };
+      await storageService.updateUser(fullUser);
+      
+      // 更新本地状态，保留原用户数据（包括密码）
+      const updatedUsers = users.map(u => u.id === user.id ? { ...u, ...userWithoutPassword } : u);
       setUsers(updatedUsers);
     } catch (error) {
       console.error('更新用户失败:', error);
@@ -2692,6 +2771,11 @@ const App: React.FC = () => {
       if (import.meta.env.VITE_API_URL) {
         return import.meta.env.VITE_API_URL;
       }
+      // 根据当前域名判断使用哪个后端
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return 'http://localhost:3001/api';
+      }
+      // GitHub Pages 使用云端后端
       return 'https://xuanren-1.onrender.com/api';
     };
 

@@ -48,7 +48,11 @@ const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  // 默认使用生产环境后端
+  // 根据当前域名判断使用哪个后端
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:3001/api';
+  }
+  // GitHub Pages 使用云端后端
   return 'https://xuanren-1.onrender.com/api';
 };
 
@@ -179,7 +183,7 @@ export const storageService = {
     }
   },
 
-  updateUser: async (user: User): Promise<User> => {
+  updateUser: async (user: Partial<User> & { id: string }): Promise<User> => {
     try {
       const response = await fetchWithTimeout(`${API_BASE_URL}/users/${user.id}`, {
         method: 'PUT',

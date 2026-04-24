@@ -20,12 +20,32 @@ const userRoutes = require('./routes/users');
 const datasetRoutes = require('./routes/datasets');
 const personRoutes = require('./routes/persons');
 const aiRoutes = require('./routes/ai');
+const userApiKeyRoutes = require('./routes/userApiKeys');
+
+// JWT认证中间件
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid or expired token' });
+    }
+    req.user = user;
+    next();
+  });
+};
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/datasets', datasetRoutes);
 app.use('/api/persons', personRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/user-api-keys', authenticateToken, userApiKeyRoutes);
 
 
 
@@ -151,6 +171,22 @@ async function initDatabase() {
     } catch (e) {
       console.log('✅ 证书表 (certificates) 就绪');
     }
+
+    // 创建用户API密钥表（每个用户独立的API KEY）
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_api_keys (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        provider TEXT NOT NULL,
+        api_key TEXT NOT NULL,
+        base_url TEXT,
+        model TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, provider)
+      )
+    `);
+    console.log('✅ 用户API密钥表 (user_api_keys) 就绪');
 
     // 检查并创建默认管理员用户
     const adminCheck = await pool.query('SELECT * FROM users WHERE username = $1', ['admin']);
