@@ -6,12 +6,15 @@ const router = express.Router();
 // 获取当前用户的所有API密钥
 router.get('/', async (req, res) => {
   try {
+    console.log('[DEBUG] GET /user-api-keys - req.user:', req.user);
     const userId = req.user.id; // 从JWT token中获取用户ID
-    
+    console.log('[DEBUG] GET /user-api-keys - userId:', userId);
+
     const result = await pool.query(
       'SELECT provider, api_key, base_url, model, created_at, updated_at FROM user_api_keys WHERE user_id = $1',
       [userId]
     );
+    console.log('[DEBUG] GET /user-api-keys - query result:', result.rows);
     
     // 转换为对象格式，方便前端使用
     const apiKeys = {};
@@ -28,7 +31,8 @@ router.get('/', async (req, res) => {
     res.json(apiKeys);
   } catch (error) {
     console.error('Get user API keys error:', error);
-    res.status(500).json({ error: 'Failed to get API keys' });
+    console.error('[DEBUG] Error stack:', error.stack);
+    res.status(500).json({ error: 'Failed to get API keys', details: error.message });
   }
 });
 
@@ -61,10 +65,12 @@ router.get('/:provider', async (req, res) => {
 // 保存或更新API密钥
 router.post('/:provider', async (req, res) => {
   try {
+    console.log('[DEBUG] POST /user-api-keys/:provider - req.user:', req.user);
     const userId = req.user.id;
     const { provider } = req.params;
     const { apiKey, baseUrl, model } = req.body;
-    
+    console.log('[DEBUG] POST /user-api-keys/:provider - userId:', userId, 'provider:', provider);
+
     if (!apiKey) {
       return res.status(400).json({ error: 'API Key is required' });
     }
@@ -84,7 +90,7 @@ router.post('/:provider', async (req, res) => {
       [id, userId, provider, apiKey, baseUrl || '', model || '']
     );
     
-    res.json({ 
+    res.json({
       message: 'API key saved successfully',
       provider,
       apiKey,
@@ -93,7 +99,8 @@ router.post('/:provider', async (req, res) => {
     });
   } catch (error) {
     console.error('Save user API key error:', error);
-    res.status(500).json({ error: 'Failed to save API key' });
+    console.error('[DEBUG] Error stack:', error.stack);
+    res.status(500).json({ error: 'Failed to save API key', details: error.message });
   }
 });
 
