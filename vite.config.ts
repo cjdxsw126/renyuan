@@ -9,8 +9,8 @@ export default defineConfig(({ mode }) => {
   
   return {
     plugins: [react()],
-    // Electron 环境下使用相对路径，网页版使用绝对路径
-    base: isElectron ? './' : '/renyuan/',
+    // Electron 环境下使用相对路径，网页版使用根路径（GitHub Pages）
+    base: isElectron ? './' : '/',
     server: {
       port: 5175,
       strictPort: true,  // 强制使用指定端口，如果被占用则报错而不是自动切换
