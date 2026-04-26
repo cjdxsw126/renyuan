@@ -24,7 +24,10 @@ const corsOptions = {
       'http://127.0.0.1:5174',
       'http://127.0.0.1:5175',
       'http://127.0.0.1:5176',
-      'http://127.0.0.1:3000'
+      'http://127.0.0.1:3000',
+      // GitHub Pages 域名
+      'https://cjdxsw126.github.io',
+      'https://cjdxsw126.github.io/renyuan'
     ];
     
     // 从环境变量读取允许的域名
