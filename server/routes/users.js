@@ -251,6 +251,18 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    const userToDelete = existingUser.rows[0];
+
+    // 保护：不能删除最后一个管理员
+    if (userToDelete.role === 'admin') {
+      const adminCountResult = await pool.query('SELECT COUNT(*) as count FROM users WHERE role = $1', ['admin']);
+      const adminCount = parseInt(adminCountResult.rows[0].count);
+      
+      if (adminCount <= 1) {
+        return res.status(400).json({ error: 'Cannot delete the last admin user' });
+      }
+    }
+
     // 删除用户（级联删除权限）
     await pool.query('DELETE FROM users WHERE id = $1', [id]);
 

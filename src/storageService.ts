@@ -63,6 +63,15 @@ const LOCAL_STORAGE_KEYS = {
   CURRENT_DATASET: 'renyuan_current_dataset',
 };
 
+// 获取认证头
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    return { 'Authorization': `Bearer ${token}` };
+  }
+  return {};
+};
+
 // 带超时的 fetch 辅助函数（Render 免费版需要60秒冷启动时间）
 async function fetchWithTimeout(
   url: string,
@@ -71,10 +80,17 @@ async function fetchWithTimeout(
 ): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  
+
+  // 自动添加认证头 - 确保不覆盖已有的Content-Type等头部
+  const headers: Record<string, string> = {
+    ...getAuthHeaders(),
+    ...((options.headers as Record<string, string>) || {})
+  };
+
   try {
     const response = await fetch(url, {
       ...options,
+      headers,
       signal: controller.signal
     });
     clearTimeout(timeoutId);
@@ -421,6 +437,49 @@ export const storageService = {
     } catch (e) {
       console.error('❌ 获取 AI 提供商失败', e);
       return [];
+    }
+  },
+
+  // ===== 用户API密钥管理（后端API）=====
+
+  getUserApiKeys: async (): Promise<any> => {
+    try {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/user-api-keys`);
+      if (!response.ok) throw new Error('Failed to fetch API keys');
+      return await response.json();
+    } catch (e) {
+      console.error('❌ 获取用户API密钥失败', e);
+      return {};
+    }
+  },
+
+  saveUserApiKey: async (provider: string, config: { apiKey: string; baseUrl?: string; model?: string }): Promise<any> => {
+    try {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/user-api-keys/${provider}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config)
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || `Failed to save API key (${response.status})`);
+      }
+      return await response.json();
+    } catch (e) {
+      console.error('❌ 保存用户API密钥失败', e);
+      throw e;
+    }
+  },
+
+  deleteUserApiKey: async (provider: string): Promise<void> => {
+    try {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/user-api-keys/${provider}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) throw new Error('Failed to delete API key');
+    } catch (e) {
+      console.error('❌ 删除用户API密钥失败', e);
+      throw e;
     }
   },
 

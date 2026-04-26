@@ -74,22 +74,31 @@ router.post('/:provider', async (req, res) => {
     if (!apiKey) {
       return res.status(400).json({ error: 'API Key is required' });
     }
-    
-    const id = Date.now().toString();
-    
-    // 使用UPSERT（插入或更新）
-    await pool.query(
-      `INSERT INTO user_api_keys (id, user_id, provider, api_key, base_url, model, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
-       ON CONFLICT (user_id, provider) 
-       DO UPDATE SET 
-         api_key = EXCLUDED.api_key,
-         base_url = EXCLUDED.base_url,
-         model = EXCLUDED.model,
-         updated_at = CURRENT_TIMESTAMP`,
-      [id, userId, provider, apiKey, baseUrl || '', model || '']
+
+    // 先检查记录是否存在（兼容SQLite和PostgreSQL）
+    const existingResult = await pool.query(
+      'SELECT id FROM user_api_keys WHERE user_id = $1 AND provider = $2',
+      [userId, provider]
     );
-    
+
+    if (existingResult.rows.length > 0) {
+      // 记录存在，执行更新
+      await pool.query(
+        `UPDATE user_api_keys 
+         SET api_key = $1, base_url = $2, model = $3, updated_at = CURRENT_TIMESTAMP 
+         WHERE user_id = $4 AND provider = $5`,
+        [apiKey, baseUrl || '', model || '', userId, provider]
+      );
+    } else {
+      // 记录不存在，执行插入
+      const id = Date.now().toString();
+      await pool.query(
+        `INSERT INTO user_api_keys (id, user_id, provider, api_key, base_url, model, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [id, userId, provider, apiKey, baseUrl || '', model || '']
+      );
+    }
+
     res.json({
       message: 'API key saved successfully',
       provider,

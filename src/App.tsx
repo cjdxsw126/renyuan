@@ -478,16 +478,8 @@ const PasswordChanger: React.FC<PasswordChangerProps> = ({ username, onClose }) 
     }
 
     try {
-      // 动态获取 API 基础 URL
-      const getApiBaseUrl = () => {
-        if (import.meta.env.VITE_API_URL) {
-          return import.meta.env.VITE_API_URL;
-        }
-        return 'https://xuanren-1.onrender.com/api';
-      };
-
       const apiUrl = getApiBaseUrl();
-      console.log('正在连接服务器:', apiUrl);
+      console.log('[DEBUG] 修改密码 - 正在连接服务器:', apiUrl);
 
       // 创建 AbortController 用于超时控制
       const controller = new AbortController();
@@ -1422,6 +1414,19 @@ const enrichPersonData = (person: Person, searchCertString?: string): EnrichedPe
 };
 
 
+// 全局API基础URL获取函数
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  // 本地开发使用 localhost
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:3001/api';
+  }
+  // GitHub Pages 使用云端后端
+  return 'https://xuanren-1.onrender.com/api';
+};
+
 const App: React.FC = () => {
   const { currentTheme } = useTheme();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
@@ -1569,44 +1574,32 @@ const App: React.FC = () => {
     }));
   };
 
-  // 从服务器加载用户特定的API配置（在登录状态或用户名变化时执行）
+  // 从服务器加载用户特定的API配置（数据持久化到数据库）
   useEffect(() => {
     const loadUserApiKeys = async () => {
       try {
-        // 尝试从服务器加载用户特定的API密钥
-        const { userApiKeyService } = await import('./services/userApiKeyService');
-        const userApiKeys = await userApiKeyService.getAllApiKeys();
-        
-        if (Object.keys(userApiKeys).length > 0) {
-          // 从服务器加载到本地状态 - 使用空配置作为基础，确保不会残留其他用户的数据
-          const newConfigs = {
-            deepseek: { apiKey: '', baseUrl: '', model: '' },
-            qwen: { apiKey: '', baseUrl: '', model: '' },
-            doubao: { apiKey: '', baseUrl: '', model: '' },
-            custom: { apiKey: '', baseUrl: '', model: '' }
-          };
-          Object.entries(userApiKeys).forEach(([provider, config]) => {
-            if (newConfigs[provider as keyof typeof newConfigs]) {
-              newConfigs[provider as keyof typeof newConfigs] = {
-                apiKey: config.apiKey || '',
-                baseUrl: config.baseUrl || '',
-                model: config.model || ''
-              };
-            }
-          });
-          setAiConfigs(newConfigs);
-        } else {
-          // 服务器没有数据，保持空状态（不加载本地缓存，避免用户间数据混淆）
-          setAiConfigs({
-            deepseek: { apiKey: '', baseUrl: '', model: '' },
-            qwen: { apiKey: '', baseUrl: '', model: '' },
-            doubao: { apiKey: '', baseUrl: '', model: '' },
-            custom: { apiKey: '', baseUrl: '', model: '' }
-          });
-        }
+        const userApiKeys = await storageService.getUserApiKeys();
+        console.log('[DEBUG] 加载API配置 - 数据:', userApiKeys);
+
+        const newConfigs = {
+          deepseek: { apiKey: '', baseUrl: '', model: '' },
+          qwen: { apiKey: '', baseUrl: '', model: '' },
+          doubao: { apiKey: '', baseUrl: '', model: '' },
+          custom: { apiKey: '', baseUrl: '', model: '' }
+        };
+
+        Object.entries(userApiKeys).forEach(([provider, config]) => {
+          if (newConfigs[provider as keyof typeof newConfigs]) {
+            newConfigs[provider as keyof typeof newConfigs] = {
+              apiKey: (config as any).apiKey || '',
+              baseUrl: (config as any).baseUrl || '',
+              model: (config as any).model || ''
+            };
+          }
+        });
+        setAiConfigs(newConfigs);
       } catch (error) {
         console.error('加载用户API密钥失败:', error);
-        // 失败时重置为空状态，避免显示错误数据
         setAiConfigs({
           deepseek: { apiKey: '', baseUrl: '', model: '' },
           qwen: { apiKey: '', baseUrl: '', model: '' },
@@ -1621,15 +1614,12 @@ const App: React.FC = () => {
     }
   }, [isLoggedIn, username]);
 
-  // 手动保存AI配置到服务器
+  // 手动保存AI配置到服务器（数据持久化）
   const handleSaveAIConfig = async () => {
     if (!isLoggedIn) return;
-    
+
     try {
-      const { userApiKeyService } = await import('./services/userApiKeyService');
-      
-      // 保存当前选中的provider的配置
-      await userApiKeyService.saveApiKey(aiProvider, {
+      await storageService.saveUserApiKey(aiProvider, {
         apiKey: aiApiKey,
         baseUrl: aiBaseUrl,
         model: aiModel
@@ -1638,8 +1628,8 @@ const App: React.FC = () => {
       addLog(`AI配置已保存: ${aiProvider}`);
       alert('API配置保存成功！');
     } catch (error) {
-      console.error('保存用户API密钥失败:', error);
-      alert('保存失败，请稍后重试');
+      console.error('[DEBUG] 保存API配置 - 异常:', error);
+      alert('保存失败: ' + (error as Error).message);
     }
   };
 
@@ -2712,14 +2702,42 @@ const App: React.FC = () => {
     }
   };
   
-  // 组件挂载时加载数据
+  // 组件挂载时检查登录状态
   useEffect(() => {
-    const initData = async () => {
-      await loadDataFromStorage();
-    };
-    initData();
+    const token = localStorage.getItem('token');
+    console.log('[DEBUG] 组件挂载 - token存在:', !!token);
+    if (token) {
+      // 如果有token，验证token有效性
+      const verifyToken = async () => {
+        try {
+          const apiUrl = getApiBaseUrl();
+          console.log('[DEBUG] 验证token - API URL:', apiUrl);
+          const response = await fetch(`${apiUrl}/users`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          console.log('[DEBUG] 验证token - 响应状态:', response.status);
+          if (response.ok) {
+            // Token有效，但为了安全，要求重新登录
+            console.log('[DEBUG] Token有效，清除并要求重新登录');
+            localStorage.removeItem('token');
+            setIsLoggedIn(false);
+          } else {
+            // Token无效，清除
+            console.log('[DEBUG] Token无效，清除');
+            localStorage.removeItem('token');
+            setIsLoggedIn(false);
+          }
+        } catch (error) {
+          // 网络错误，清除token要求重新登录
+          console.log('[DEBUG] 验证token网络错误，清除token');
+          localStorage.removeItem('token');
+          setIsLoggedIn(false);
+        }
+      };
+      verifyToken();
+    }
   }, []);
-  
+
   // 用户登录时重新加载数据
   useEffect(() => {
     if (isLoggedIn) {
@@ -2737,19 +2755,6 @@ const App: React.FC = () => {
   // 处理登录
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // 动态获取 API 基础 URL
-    const getApiBaseUrl = () => {
-      if (import.meta.env.VITE_API_URL) {
-        return import.meta.env.VITE_API_URL;
-      }
-      // 根据当前域名判断使用哪个后端
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return 'http://localhost:3001/api';
-      }
-      // GitHub Pages 使用云端后端
-      return 'https://xuanren-1.onrender.com/api';
-    };
 
     const apiUrl = getApiBaseUrl();
     console.log('正在连接服务器:', apiUrl);
@@ -2776,6 +2781,12 @@ const App: React.FC = () => {
       }
 
       const loginData = await response.json();
+
+      // 保存token到localStorage（关键！）
+      if (loginData.token) {
+        localStorage.setItem('token', loginData.token);
+        console.log('[DEBUG] 登录成功 - token已保存');
+      }
 
       // 转换字段名为camelCase
       const user = loginData.user ? {
@@ -5123,8 +5134,14 @@ const App: React.FC = () => {
                     {aiApiKey && (
                       <button
                         type="button"
-                        onClick={() => {
-                          // 清除当前模型的配置
+                        onClick={async () => {
+                          // 清除当前模型的配置（同时清除前端状态和后端数据库）
+                          try {
+                            await storageService.deleteUserApiKey(aiProvider);
+                          } catch (error) {
+                            console.error('清除API Key失败:', error);
+                          }
+                          // 无论后端是否成功，都清除前端状态
                           setAiConfigs(prev => ({
                             ...prev,
                             [aiProvider]: { apiKey: '', baseUrl: '', model: '' }

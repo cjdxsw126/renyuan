@@ -10,8 +10,43 @@ dotenv.config();
 // 创建Express应用
 const app = express();
 
+// CORS配置 - 根据环境限制允许的域名
+const corsOptions = {
+  origin: function (origin, callback) {
+    // 允许本地开发环境
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:5175',
+      'http://localhost:5176',
+      'http://localhost:3000',
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:5174',
+      'http://127.0.0.1:5175',
+      'http://127.0.0.1:5176',
+      'http://127.0.0.1:3000'
+    ];
+    
+    // 从环境变量读取允许的域名
+    if (process.env.ALLOWED_ORIGINS) {
+      allowedOrigins.push(...process.env.ALLOWED_ORIGINS.split(','));
+    }
+    
+    // 允许无origin的请求（如移动应用、Postman）或已允许的域名
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS拒绝请求来自: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
 // 中间件
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -32,7 +67,7 @@ const authenticateToken = (req, res, next) => {
     return res.status(401).json({ error: 'Access token required' });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, user) => {
+  jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production', (err, user) => {
     if (err) {
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
@@ -42,10 +77,10 @@ const authenticateToken = (req, res, next) => {
 };
 
 app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/datasets', datasetRoutes);
-app.use('/api/persons', personRoutes);
-app.use('/api/ai', aiRoutes);
+app.use('/api/users', authenticateToken, userRoutes);
+app.use('/api/datasets', authenticateToken, datasetRoutes);
+app.use('/api/persons', authenticateToken, personRoutes);
+app.use('/api/ai', authenticateToken, aiRoutes);
 app.use('/api/user-api-keys', authenticateToken, userApiKeyRoutes);
 
 
