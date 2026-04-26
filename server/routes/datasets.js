@@ -35,6 +35,12 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { name, count, certificate_options } = req.body;
+    
+    console.log('[DEBUG] 创建数据集请求:', { name, count, certificate_options });
+
+    if (!name) {
+      return res.status(400).json({ error: 'Dataset name is required' });
+    }
 
     const datasetId = Date.now().toString();
     await pool.query(
@@ -51,10 +57,11 @@ router.post('/', async (req, res) => {
       dataset.certificate_options = certificate_options;
     }
     
+    console.log('[DEBUG] 数据集创建成功:', dataset);
     res.json(dataset);
   } catch (error) {
     console.error('Create dataset error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
