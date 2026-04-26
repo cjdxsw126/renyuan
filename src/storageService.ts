@@ -64,7 +64,7 @@ const LOCAL_STORAGE_KEYS = {
 };
 
 // 获取认证头
-const getAuthHeaders = () => {
+const getAuthHeaders = (): Record<string, string> => {
   const token = localStorage.getItem('token');
   if (token) {
     return { 'Authorization': `Bearer ${token}` };
