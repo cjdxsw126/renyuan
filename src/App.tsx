@@ -3558,6 +3558,42 @@ const App: React.FC = () => {
           (person as any)._totalPoolSize = certPool.length;
         }
 
+        // cert_count_rules 筛选（特定证书数量要求）
+        if (aiRule.cert_count_rules && Array.isArray(aiRule.cert_count_rules) && aiRule.cert_count_rules.length > 0) {
+          for (const rule of aiRule.cert_count_rules) {
+            const requiredCert = rule.cert;
+            const requiredCount = rule.count;
+            
+            // 计算该人员持有的特定证书数量
+            let personCertCount = 0;
+            if (Array.isArray(person.certificates)) {
+              personCertCount = person.certificates.filter((c: any) => {
+                const certName = typeof c === 'string' ? c : (c.name || c.value || '');
+                return certName.toLowerCase().includes(requiredCert.toLowerCase()) ||
+                       requiredCert.toLowerCase().includes(certName.toLowerCase());
+              }).length;
+            }
+            
+            // 检查certificateColumns
+            if (person.certificateColumns) {
+              Object.entries(person.certificateColumns).forEach(([colName, colValue]) => {
+                if (colName.toLowerCase().includes(requiredCert.toLowerCase()) ||
+                    requiredCert.toLowerCase().includes(colName.toLowerCase())) {
+                  const vs = String(colValue || '').trim();
+                  if (vs && !['否', '无', '-', '/', 'N/A', 'no'].includes(vs.toLowerCase())) {
+                    personCertCount++;
+                  }
+                }
+              });
+            }
+            
+            if (personCertCount < requiredCount) {
+              addLog(`[筛选排除] ${person.name || '未知'}: ${requiredCert}证书数量(${personCertCount}) < 要求(${requiredCount})`);
+              return false;
+            }
+          }
+        }
+
         return true;
       });
 
