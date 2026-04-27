@@ -832,17 +832,34 @@ const UserThemeDropdown: React.FC<UserThemeDropdownProps> = ({ username, userRol
           width: '32px',
           height: '32px',
           borderRadius: '50%',
-          background: userAvatar 
+          background: userAvatar && !userAvatar.startsWith('data:') && userAvatar.length <= 2
             ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
             : `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.accent})`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: userAvatar ? '#fff' : currentTheme.colors.background,
+          color: (userAvatar && !userAvatar.startsWith('data:') && userAvatar.length <= 2) ? '#fff' : currentTheme.colors.background,
           fontWeight: 'bold',
-          fontSize: userAvatar ? '18px' : '14px'
+          fontSize: (userAvatar && !userAvatar.startsWith('data:') && userAvatar.length <= 2) ? '18px' : '14px',
+          overflow: 'hidden'
         }}>
-          {userAvatar || (username ? username.charAt(0).toUpperCase() : 'U')}
+          {userAvatar ? (
+            userAvatar.startsWith('data:') || userAvatar.startsWith('http') ? (
+              <img 
+                src={userAvatar} 
+                alt="头像" 
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  objectFit: 'cover' 
+                }}
+              />
+            ) : (
+              userAvatar
+            )
+          ) : (
+            username ? username.charAt(0).toUpperCase() : 'U'
+          )}
         </div>
         {/* 用户设置文字 */}
         <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3, textAlign: 'left' }}>
@@ -1696,8 +1713,8 @@ const App: React.FC = () => {
       
       // 合并数据，只更新提供的字段
       // 重要：从 existingUser 中排除 password 字段，防止密码被重新哈希
-      const { password: existingPassword, ...existingUserWithoutPassword } = existingUser;
-      const { password: newPassword, ...userWithoutPassword } = user;
+      const { password: _, ...existingUserWithoutPassword } = existingUser;
+      const { password: __, ...userWithoutPassword } = user;
       const fullUser = { ...existingUserWithoutPassword, ...userWithoutPassword };
       await storageService.updateUser(fullUser);
       
@@ -1829,12 +1846,6 @@ const App: React.FC = () => {
       [module]: !prev[module]
     }));
     addLog(`${module} 模块状态已切换为 ${!modules[module]}`);
-  };
-
-  // 处理用户角色切换
-  const handleRoleChange = (role: 'admin' | 'member') => {
-    setUserRole(role);
-    addLog(`用户角色已切换为 ${role}`);
   };
 
   // 密码强度验证函数
@@ -2243,8 +2254,10 @@ const App: React.FC = () => {
             name: ['姓名', 'name'],
             age: ['年龄', 'age'],
             education: ['学历', 'education'],
+            educationType: ['教育形式', 'educationtype', '教育类型'],
             major: ['专业', 'major'],
             employeeId: ['工号', 'employeeid', 'employee'],
+            workLocation: ['工作地点', 'worklocation', '所在地', '城市'],
             tenure: ['入司年限', '入司年限（年）', '入司时间', '司龄', 'tenure'],
             graduationTenure: ['毕业年限', '毕业年限（年）', '毕业时间', '工作年限', '从业年限']
           };
@@ -2293,7 +2306,7 @@ const App: React.FC = () => {
           const processPersonData = (item: any, index: number): Person | null => {
             const allKeys = Object.keys(item);
             const certificateColumns: { [key: string]: string } = {};
-            let name = '', education = '', major = '', employeeId = '';
+            let name = '', education = '', educationType = '', major = '', employeeId = '', workLocation = '';
             let age = 0, tenure = 0, graduationTenure = 0;
             const certificates: string[] = [];
             
@@ -2312,11 +2325,25 @@ const App: React.FC = () => {
               } else if (fieldMappings.education.some(k => keyClean.includes(k.toLowerCase()))) {
                 education = String(value) || '';
                 fieldRecognized = true;
+              } else if (fieldMappings.educationType.some(k => {
+                const kClean = k.toLowerCase();
+                const kNoSpaces = k.replace(/\s/g, '').toLowerCase();
+                return keyClean === kClean || keyClean.includes(kClean) || keyWithoutSpaces === kNoSpaces || keyWithoutSpaces.includes(kNoSpaces);
+              })) {
+                educationType = String(value) || '';
+                fieldRecognized = true;
               } else if (key.trim() === '专业' || keyClean === 'major') {
                 major = String(value) || '';
                 fieldRecognized = true;
               } else if (fieldMappings.employeeId.some(k => keyClean.includes(k.toLowerCase()))) {
                 employeeId = String(value) || '';
+                fieldRecognized = true;
+              } else if (fieldMappings.workLocation.some(k => {
+                const kClean = k.toLowerCase();
+                const kNoSpaces = k.replace(/\s/g, '').toLowerCase();
+                return keyClean === kClean || keyClean.includes(kClean) || keyWithoutSpaces === kNoSpaces || keyWithoutSpaces.includes(kNoSpaces);
+              })) {
+                workLocation = String(value) || '';
                 fieldRecognized = true;
               } else if (fieldMappings.tenure.some(k => keyClean.includes(k.toLowerCase()) || keyWithoutSpaces.includes(k.replace(/\s/g, '').toLowerCase()))) {
                 tenure = parseFloat(String(value)) || 0;
@@ -2348,9 +2375,9 @@ const App: React.FC = () => {
                 fieldRecognized = true;
               }
               
-              // 其他已知字段
-              if (isHidden || isFirstColumn || imageFieldSet.has(keyClean) || 
-                  personalInfoSet.has(keyWithoutSpaces)) {
+              // 其他已知字段（但教育形式需要单独处理，已在上面提取）
+              if (!fieldRecognized && (isHidden || isFirstColumn || imageFieldSet.has(keyClean) || 
+                  personalInfoSet.has(keyWithoutSpaces))) {
                 fieldRecognized = true;
               }
               
@@ -2366,7 +2393,7 @@ const App: React.FC = () => {
             
             // 处理PMP证书
             const pmpCertKey = Object.keys(certificateColumns).find(k => k.includes('PMP'));
-            let finalCertificates = cleanCertificates.filter(c => !c.includes('PMP'));
+            const finalCertificates = cleanCertificates.filter(c => !c.includes('PMP'));
             
             if (pmpCertKey) {
               const pmpValue = certificateColumns[pmpCertKey];
@@ -2393,9 +2420,11 @@ const App: React.FC = () => {
               name: personName,
               age,
               education,
+              educationType,
               major,
               certificates: finalCertificates,
               employeeId,
+              workLocation,
               certificateColumns,
               tenure,
               graduationTenure,
@@ -3260,6 +3289,11 @@ const App: React.FC = () => {
           rule.name ? `  姓名: ${rule.name}` : '',
           rule.age_min !== undefined && rule.age_min !== null ? `  年龄: ${rule.age_min}-${rule.age_max ?? '?'}岁` : '',
           rule.education ? `  学历: ${rule.education}` : '',
+          rule.education_type ? `  教育形式: ${rule.education_type}` : '',
+          rule.major ? `  专业: ${rule.major}` : '',
+          rule.work_location ? `  工作地点: ${rule.work_location}` : '',
+          rule.limit ? `  人数限制: ${rule.limit}人` : '',
+          rule.cert_count_rules ? `  证书数量要求: ${rule.cert_count_rules.map((r: any) => `${r.cert}×${r.count}`).join(', ')}` : '',
           result.explanation || rule.explanation ? `  说明: ${result.explanation || rule.explanation}` : ''
         ].filter(Boolean);
         setAiDiagnosticInfo(diagLines.join('\n'));
@@ -3448,6 +3482,31 @@ const App: React.FC = () => {
 
         if (aiRule.education && person.education !== aiRule.education) return false;
 
+        // 教育形式筛选（支持数据映射：普通高等教育→全日制）
+        if (aiRule.education_type) {
+          const personEduType = (person.educationType || '');
+          const personEduTypeMapped = personEduType === '普通高等教育' ? '全日制' : 
+            (personEduType === '成人教育' || personEduType === '网络教育' || personEduType === '其它') ? '非全日制' : personEduType;
+          const requiredType = aiRule.education_type;
+          if (personEduTypeMapped !== requiredType) {
+            addLog(`[筛选排除] ${person.name || '未知'}: 教育形式(${personEduTypeMapped || '未记录'}) ≠ 要求(${requiredType})`);
+            return false;
+          }
+        }
+
+        // 工作地点筛选
+        if (aiRule.work_location) {
+          const personWorkLocation = (person.workLocation || '');
+          const requiredLocation = aiRule.work_location;
+          // 支持模糊匹配：人员工作地点包含要求地点，或要求地点包含人员工作地点
+          const personLocLower = personWorkLocation.toLowerCase();
+          const requiredLocLower = requiredLocation.toLowerCase();
+          if (!personLocLower.includes(requiredLocLower) && !requiredLocLower.includes(personLocLower)) {
+            addLog(`[筛选排除] ${person.name || '未知'}: 工作地点(${personWorkLocation || '未记录'}) ≠ 要求(${requiredLocation})`);
+            return false;
+          }
+        }
+
         if (searchMajorTerms.length > 0) {
           const pm = (person.major || '').replace(/\s/g, '').toLowerCase();
           if (!searchMajorTerms.some(t => pm.includes(t))) return false;
@@ -3502,23 +3561,32 @@ const App: React.FC = () => {
         return true;
       });
 
-      const enrichedFiltered = filtered.map(p => enrichPersonData(p, certPool.join('、')));
+      // 人数限制处理
+      let finalFiltered = filtered;
+      const limit = aiRule.limit !== null && aiRule.limit !== undefined ? Number(aiRule.limit) : null;
+      if (limit !== null && limit > 0 && filtered.length > limit) {
+        finalFiltered = filtered.slice(0, limit);
+        addLog(`[人数限制] 原始匹配${filtered.length}人，按limit=${limit}截取前${limit}人`);
+      }
+
+      const enrichedFiltered = finalFiltered.map(p => enrichPersonData(p, certPool.join('、')));
       setFilteredPeople(enrichedFiltered);
       setFilteredCurrentPage(1);
 
       if (enrichedFiltered.length > 0) {
         let msg: string;
+        const limitHint = limit ? `（限前${limit}人）` : '';
         if (noCertRequired) {
-          msg = `✓ 找到 ${enrichedFiltered.length} 人（无证书限制）`;
+          msg = `✓ 找到 ${enrichedFiltered.length} 人${limitHint}（无证书限制）`;
         } else if (matchMode === 'ALL') {
-          msg = `✓ 精确匹配 ${enrichedFiltered.length} 人（${certPool.length}项全部具备）`;
+          msg = `✓ 精确匹配 ${enrichedFiltered.length} 人${limitHint}（${certPool.length}项全部具备）`;
         } else if (matchMode === 'ANY') {
-          msg = `✓ 找到 ${enrichedFiltered.length} 人（具备${certPool.length}项中任一）`;
+          msg = `✓ 找到 ${enrichedFiltered.length} 人${limitHint}（具备${certPool.length}项中任一）`;
         } else {
-          msg = `✓ 找到 ${enrichedFiltered.length} 人（从${certPool.length}项中匹配≥${finalThreshold}项）`;
+          msg = `✓ 找到 ${enrichedFiltered.length} 人${limitHint}（从${certPool.length}项中匹配≥${finalThreshold}项）`;
         }
         displayAlert(msg, 'success');
-        addLog(`搜索[${matchMode}] S=${certPool.length}, N=${finalThreshold} → ${enrichedFiltered.length}人`);
+        addLog(`搜索[${matchMode}] S=${certPool.length}, N=${finalThreshold} → ${enrichedFiltered.length}人${limit ? `(limit=${limit})` : ''}`);
       } else {
         let msg: string;
         if (noCertRequired) {
@@ -3850,7 +3918,9 @@ const App: React.FC = () => {
               return `${year}-${month}-${day}`;
             }
           }
-        } catch (e) {}
+        } catch {
+          // 忽略解析错误
+        }
 
         return null;
       };
@@ -6456,7 +6526,7 @@ const App: React.FC = () => {
                   const allPossibleCertificates = new Set<string>();
                   certificateOptions.forEach(option => allPossibleCertificates.add(option));
                   people.forEach(person => {
-                    Object.entries(person.certificateColumns || {}).forEach(([_, certValue]) => {
+                    Object.entries(person.certificateColumns || {}).forEach(([, certValue]) => {
                       const valueStr = String(certValue || '').trim();
                       if (valueStr && valueStr !== '是' && valueStr !== '否' && valueStr !== '有' && valueStr !== '无') {
                         allPossibleCertificates.add(valueStr);
@@ -6754,33 +6824,35 @@ const App: React.FC = () => {
                     >
                       重置密码
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => handleUserToggle(user.id, user.enabled)}
-                      style={{
-                        padding: '4px 8px',
-                        border: '1px solid #ff9800',
-                        borderRadius: '4px',
-                        backgroundColor: '#ff9800',
-                        color: '#ffffff',
-                        cursor: 'pointer',
-                        fontSize: '12px'
-                      }}
-                    >
-                      {user.enabled ? '禁用' : '启用'}
-                    </button>
+                    {user.username !== 'admin' && (
+                      <button
+                        type="button"
+                        onClick={() => handleUserToggle(user.id, user.enabled)}
+                        style={{
+                          padding: '4px 8px',
+                          border: '1px solid #ff9800',
+                          borderRadius: '4px',
+                          backgroundColor: '#ff9800',
+                          color: '#ffffff',
+                          cursor: 'pointer',
+                          fontSize: '12px'
+                        }}
+                      >
+                        {user.enabled ? '禁用' : '启用'}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleUserDelete(user.id, user.username)}
-                      disabled={user.id === '1'}
+                      disabled={user.username === 'admin'}
                       style={{
                         padding: '4px 8px',
                         border: `1px solid ${currentTheme.colors.primary}`,
                         borderRadius: '4px',
                         backgroundColor: currentTheme.colors.primary,
                         color: '#ffffff',
-                        cursor: user.id === '1' ? 'not-allowed' : 'pointer',
-                        opacity: user.id === '1' ? 0.5 : 1,
+                        cursor: user.username === 'admin' ? 'not-allowed' : 'pointer',
+                        opacity: user.username === 'admin' ? 0.5 : 1,
                         fontSize: '12px'
                       }}
                     >
@@ -6794,39 +6866,21 @@ const App: React.FC = () => {
 
           {/* 用户角色管理 */}
           <div style={{ marginBottom: '24px' }}>
-            <h3>当前角色管理</h3>
+            <h3>当前角色</h3>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px', color: currentTheme.colors.text }}>
               <span>当前角色: </span>
-              <button
-                type="button"
-                onClick={() => handleRoleChange('admin')}
+              <span
                 style={{
                   padding: '6px 12px',
-                  border: userRole === 'admin' ? `1px solid ${currentTheme.colors.primary}` : `1px solid ${currentTheme.colors.border}`,
+                  border: `1px solid ${currentTheme.colors.primary}`,
                   borderRadius: '4px',
-                  backgroundColor: userRole === 'admin' ? currentTheme.colors.primary : currentTheme.colors.dropdownButtonBg,
-                  color: userRole === 'admin' ? currentTheme.colors.background : currentTheme.colors.text,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
+                  backgroundColor: currentTheme.colors.primary,
+                  color: currentTheme.colors.background,
+                  fontWeight: 500
                 }}
               >
-                管理员
-              </button>
-              <button
-                type="button"
-                onClick={() => handleRoleChange('member')}
-                style={{
-                  padding: '6px 12px',
-                  border: userRole === 'member' ? `1px solid ${currentTheme.colors.primary}` : `1px solid ${currentTheme.colors.border}`,
-                  borderRadius: '4px',
-                  backgroundColor: userRole === 'member' ? currentTheme.colors.primary : currentTheme.colors.dropdownButtonBg,
-                  color: userRole === 'member' ? currentTheme.colors.background : currentTheme.colors.text,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                普通成员
-              </button>
+                {userRole === 'admin' ? '管理员' : '普通成员'}
+              </span>
             </div>
             <div style={{ marginTop: '10px' }}>
               <button
@@ -7164,12 +7218,12 @@ const App: React.FC = () => {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ backgroundColor: currentTheme.colors.tableHeaderBg || currentTheme.colors.primary }}>
-                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold' }}>工号</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold' }}>姓名</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold' }}>年龄</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold' }}>学历</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold' }}>专业</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold' }}>证书</th>
+                    <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold', minWidth: '80px' }}>工号</th>
+                    <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold', minWidth: '70px', whiteSpace: 'nowrap' }}>姓名</th>
+                    <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold', minWidth: '50px' }}>年龄</th>
+                    <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold', minWidth: '60px' }}>学历</th>
+                    <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold', minWidth: '120px' }}>专业</th>
+                    <th style={{ padding: '8px', textAlign: 'left', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, fontWeight: 'bold' }}>证书</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -7194,12 +7248,12 @@ const App: React.FC = () => {
 
                       return (
                         <tr key={person.id} style={{ backgroundColor: rowBg }}>
-                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>{person.employeeId || '-'}</td>
-                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>{person.name || '-'}</td>
-                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>{getPersonAge(person) || '-'}</td>
-                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>{person.education || '-'}</td>
-                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>{person.major || '-'}</td>
-                          <td style={{ padding: '12px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>
+                          <td style={{ padding: '6px 8px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>{person.employeeId || '-'}</td>
+                          <td style={{ padding: '6px 8px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text, whiteSpace: 'nowrap', minWidth: '70px' }}>{person.name || '-'}</td>
+                          <td style={{ padding: '6px 8px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>{getPersonAge(person) || '-'}</td>
+                          <td style={{ padding: '6px 8px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>{person.education || '-'}</td>
+                          <td style={{ padding: '6px 8px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>{person.major || '-'}</td>
+                          <td style={{ padding: '6px 8px', border: `1px solid ${currentTheme.colors.border}`, color: currentTheme.colors.text }}>
                             {enriched._certDisplay || '无'}
                           </td>
                         </tr>
@@ -7273,7 +7327,7 @@ const App: React.FC = () => {
           zIndex: 10000
         }}>
           <div style={{
-            backgroundColor: '#ffffff',
+            backgroundColor: currentTheme.colors.background,
             borderRadius: '8px',
             padding: '24px',
             maxWidth: '400px',
@@ -7301,7 +7355,7 @@ const App: React.FC = () => {
                   border: 'none',
                   fontSize: '20px',
                   cursor: 'pointer',
-                  color: '#999'
+                  color: currentTheme.colors.text
                 }}
               >
                 ×
@@ -7415,10 +7469,10 @@ const App: React.FC = () => {
                 }}
                 style={{
                   padding: '8px 16px',
-                  border: '1px solid #ddd',
+                  border: `1px solid ${currentTheme.colors.border}`,
                   borderRadius: '4px',
-                  backgroundColor: '#ffffff',
-                  color: '#000000',
+                  backgroundColor: currentTheme.colors.dropdownButtonBg,
+                  color: currentTheme.colors.text,
                   cursor: 'pointer'
                 }}
               >
@@ -7431,8 +7485,8 @@ const App: React.FC = () => {
                   padding: '8px 16px',
                   border: `1px solid ${currentTheme.colors.primary}`,
                   borderRadius: '4px',
-                  backgroundColor: isLoading || Object.keys(validationErrors).length > 0 || !newUser.username.trim() || !newUser.password ? '#ffcccc' : currentTheme.colors.primary,
-                  color: '#ffffff',
+                  backgroundColor: isLoading || Object.keys(validationErrors).length > 0 || !newUser.username.trim() || !newUser.password ? currentTheme.colors.dropdownButtonBg : currentTheme.colors.primary,
+                  color: isLoading || Object.keys(validationErrors).length > 0 || !newUser.username.trim() || !newUser.password ? currentTheme.colors.text : currentTheme.colors.background,
                   cursor: isLoading || Object.keys(validationErrors).length > 0 || !newUser.username.trim() || !newUser.password ? 'not-allowed' : 'pointer',
                   opacity: isLoading || Object.keys(validationErrors).length > 0 || !newUser.username.trim() || !newUser.password ? 0.7 : 1,
                   transition: 'all 0.3s ease'
@@ -7468,7 +7522,7 @@ const App: React.FC = () => {
           zIndex: 10000
         }}>
           <div style={{
-            backgroundColor: '#ffffff',
+            backgroundColor: currentTheme.colors.background,
             borderRadius: '8px',
             padding: '20px',
             maxWidth: '400px',
@@ -7493,16 +7547,16 @@ const App: React.FC = () => {
                   border: 'none',
                   fontSize: '20px',
                   cursor: 'pointer',
-                  color: '#999'
+                  color: currentTheme.colors.text
                 }}
               >
                 ×
               </button>
             </div>
             <div style={{ marginBottom: '24px' }}>
-              <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#5a3d31' }}>功能权限</h4>
+              <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', color: currentTheme.colors.text }}>功能权限</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: currentTheme.colors.text }}>
                   <span>文件上传</span>
                   <label className="switch">
                     <input
@@ -7513,7 +7567,7 @@ const App: React.FC = () => {
                     <span className="slider round"></span>
                   </label>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: currentTheme.colors.text }}>
                   <span>搜索功能</span>
                   <label className="switch">
                     <input
@@ -7524,7 +7578,7 @@ const App: React.FC = () => {
                     <span className="slider round"></span>
                   </label>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: currentTheme.colors.text }}>
                   <span>下载功能</span>
                   <label className="switch">
                     <input
@@ -7535,7 +7589,7 @@ const App: React.FC = () => {
                     <span className="slider round"></span>
                   </label>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: currentTheme.colors.text }}>
                   <span>后台管理</span>
                   <label className="switch">
                     <input
@@ -7546,7 +7600,7 @@ const App: React.FC = () => {
                     <span className="slider round"></span>
                   </label>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: currentTheme.colors.text }}>
                   <span>数据删除</span>
                   <label className="switch">
                     <input
@@ -7567,10 +7621,10 @@ const App: React.FC = () => {
                 }}
                 style={{
                   padding: '8px 16px',
-                  border: '1px solid #ddd',
+                  border: `1px solid ${currentTheme.colors.border}`,
                   borderRadius: '4px',
-                  backgroundColor: '#ffffff',
-                  color: '#000000',
+                  backgroundColor: currentTheme.colors.dropdownButtonBg,
+                  color: currentTheme.colors.text,
                   cursor: 'pointer'
                 }}
               >
@@ -7580,10 +7634,10 @@ const App: React.FC = () => {
                 onClick={handlePermissionSave}
                 style={{
                   padding: '8px 16px',
-                  border: '1px solid #4CAF50',
+                  border: `1px solid ${currentTheme.colors.primary}`,
                   borderRadius: '4px',
-                  backgroundColor: '#4CAF50',
-                  color: '#ffffff',
+                  backgroundColor: currentTheme.colors.primary,
+                  color: currentTheme.colors.background,
                   cursor: 'pointer'
                 }}
               >

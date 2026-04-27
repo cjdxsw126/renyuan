@@ -40,9 +40,11 @@ export interface Person {
   name: string;
   age: number;
   education: string;
+  educationType?: string;
   major: string;
   certificates: string[];
   employeeId: string;
+  workLocation?: string;
   certificateColumns: { [key: string]: string };
   tenure: number;
   graduationTenure: number;

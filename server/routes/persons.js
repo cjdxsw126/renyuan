@@ -155,13 +155,13 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { dataset_id, name, age, education, major, employee_id, original_data, certificates, tenure, graduation_tenure, certificate_columns } = req.body;
+    const { dataset_id, name, age, education, education_type, major, employee_id, work_location, original_data, certificates, tenure, graduation_tenure, certificate_columns } = req.body;
     const originalDataStr = original_data ? JSON.stringify(original_data) : null;
     const certColsStr = certificate_columns ? JSON.stringify(certificate_columns) : null;
 
     const result = await pool.query(
-      'INSERT INTO persons (dataset_id, name, age, education, major, employee_id, original_data, tenure, graduation_tenure, certificate_columns) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id',
-      [dataset_id, name, age || null, education || null, major || null, employee_id || null, originalDataStr, tenure || 0, graduation_tenure || 0, certColsStr]
+      'INSERT INTO persons (dataset_id, name, age, education, education_type, major, employee_id, work_location, original_data, tenure, graduation_tenure, certificate_columns) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id',
+      [dataset_id, name, age || null, education || null, education_type || null, major || null, employee_id || null, work_location || null, originalDataStr, tenure || 0, graduation_tenure || 0, certColsStr]
     );
     const personId = result.rows[0].id;
 
@@ -207,12 +207,12 @@ router.post('/batch', async (req, res) => {
         batchIds.push(preGeneratedId);
         const originalDataStr = p.original_data ? JSON.stringify(p.original_data) : null;
         const certColsStr = p.certificate_columns ? JSON.stringify(p.certificate_columns) : null;
-        personValues.push([preGeneratedId, dataset_id, p.name || null, p.age || null, p.education || null, p.major || null, p.employee_id || null, originalDataStr, p.tenure || 0, p.graduation_tenure || 0, certColsStr]);
+        personValues.push([preGeneratedId, dataset_id, p.name || null, p.age || null, p.education || null, p.education_type || null, p.major || null, p.employee_id || null, p.work_location || null, originalDataStr, p.tenure || 0, p.graduation_tenure || 0, certColsStr]);
       }
 
-      const personInsertSQL = `INSERT INTO persons (id, dataset_id, name, age, education, major, employee_id, original_data, tenure, graduation_tenure, certificate_columns) VALUES ${batch.map((_, i) => {
-        const offset = i * 11;
-        return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11})`;
+      const personInsertSQL = `INSERT INTO persons (id, dataset_id, name, age, education, education_type, major, employee_id, work_location, original_data, tenure, graduation_tenure, certificate_columns) VALUES ${batch.map((_, i) => {
+        const offset = i * 13;
+        return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11}, $${offset + 12}, $${offset + 13})`;
       }).join(', ')}`;
 
       await pool.query(personInsertSQL, personValues.flat());
@@ -247,7 +247,7 @@ router.post('/batch', async (req, res) => {
     await pool.query('UPDATE datasets SET count = count + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [persons.length, dataset_id]);
     console.log(`[Batch Import] ✅ 批量导入成功！总计: ${persons.length} 人员 + ${allCertificates.length} 证书, 耗时: ${Date.now() - startTime}ms`);
 
-    res.json(persons.map((p, i) => ({ id: allPersonIds[i], dataset_id, name: p.name, age: p.age, education: p.education, major: p.major, employee_id: p.employee_id })));
+    res.json(persons.map((p, i) => ({ id: allPersonIds[i], dataset_id, name: p.name, age: p.age, education: p.education, education_type: p.education_type, major: p.major, employee_id: p.employee_id, work_location: p.work_location })));
   } catch (error) {
     console.error('❌ Batch create persons error:', error);
     res.status(500).json({ error: error.message });

@@ -12,9 +12,13 @@ const SYSTEM_PROMPT = `你是人才证书动态阈值筛选解析器。将用户
   "age_min": null或数字,
   "age_max": null或数字,
   "education": null或学历,
+  "education_type": null或"全日制"或"非全日制",
   "major": null或专业,
+  "work_location": null或城市名,
   "tenure_min": null或数字,
   "tenure_max": null或数字,
+  "limit": null或数字,
+  "cert_count_rules": null或[{ "cert": "证书名", "count": 数字 }],
   "explanation": "简短中文说明"
 }
 
@@ -25,6 +29,8 @@ const SYSTEM_PROMPT = `你是人才证书动态阈值筛选解析器。将用户
   - "ALL": 必须具备cert_pool中**每一个**证书（等价于AND）
   - "AT_LEAST": 从cert_pool中**至少满足threshold个**即可（最常用）
   - "ANY": 具备cert_pool中**任意1个**即可（OR）
+- **limit**: 限制返回的最大人数，如"选5个人"、"前3名"、"最多10人"
+- **cert_count_rules**: 特定证书的数量要求，如"3个PMP"、"2个系统架构设计师"
 
 ## 三、阈值识别规则（核心！）
 
@@ -68,8 +74,23 @@ const SYSTEM_PROMPT = `你是人才证书动态阈值筛选解析器。将用户
 - name: 姓名
 - age_min / age_max: 年龄范围（数字，岁）
 - education: 学历（专科/本科/硕士/博士）
+- education_type: 教育形式（"全日制"或"非全日制"）
+  - 用户说"全日制"、"统招"、"普通高等教育" → "全日制"
+  - 用户说"非全日制"、"成人教育"、"网络教育"、"自考"、"其它" → "非全日制"
+  - 未提及 → null
 - major: 专业
+- work_location: 工作地点/所在地
+  - 用户说"广州"、"深圳"、"北京"、"上海"等城市名 → 提取城市名
+  - 用户说"本地"、"当地" → 需要结合上下文，如无法确定则null
+  - 未提及 → null
 - tenure_min / tenure_max: 入司年限/毕业年限/工作年限（年）
+- limit: 返回人数上限
+  - "选5个人"、"前3名"、"最多10人"、"只要2个" → 提取数字
+  - "选几个人"、"来一些人" → null（无明确数量）
+- cert_count_rules: 特定证书数量要求
+  - "3个PMP" → [{"cert": "PMP", "count": 3}]
+  - "2个系统架构设计师和1个网络工程师" → [{"cert": "系统架构设计师", "count": 2}, {"cert": "网络工程师", "count": 3}]
+  - 注意：此字段用于团队/项目人员配置场景，表示需要多少持有某证书的人
 
 ### 年限识别规则：
 | 用户表达 | tenure_min | tenure_max | 说明 |
@@ -99,6 +120,21 @@ const SYSTEM_PROMPT = `你是人才证书动态阈值筛选解析器。将用户
 
 输入: "35岁以下有5年以上工作经验的软考证书持有人"
 → cert_pool:["系统分析师","信息系统项目管理师","系统集成项目经理","系统架构设计师","网络规划设计师"], threshold=1, match_mode="AT_LEAST", age_max:34, tenure_min:5
+
+输入: "全日制PMP"
+→ cert_pool:["PMP"], threshold=1, match_mode="AT_LEAST", education_type:"全日制", explanation:"用户要求全日制且持有PMP证书的人才"
+
+输入: "选5个有PMP证书的人"
+→ cert_pool:["PMP"], threshold=1, match_mode="AT_LEAST", limit:5
+
+输入: "需要3个PMP和2个系统架构设计师"
+→ cert_pool:["PMP","系统架构设计师"], threshold=2, match_mode="AT_LEAST", cert_count_rules:[{"cert":"PMP","count":3},{"cert":"系统架构设计师","count":2}], explanation:"团队配置：需要3人持PMP、2人持系统架构设计师"
+
+输入: "广州的全日制PMP人才"
+→ cert_pool:["PMP"], threshold=1, match_mode="AT_LEAST", education_type:"全日制", work_location:"广州", explanation:"筛选广州地区全日制且持有PMP证书的人才"
+
+输入: "深圳本科毕业10年以上有系统架构师证书的人"
+→ cert_pool:["系统架构设计师"], threshold=1, match_mode="AT_LEAST", education:"本科", tenure_min:10, work_location:"深圳"
 
 用户输入：{user_input}
 
@@ -332,9 +368,13 @@ router.post('/smart-search', async (req, res) => {
         age_min: result.age_min !== null ? Number(result.age_min) : null,
         age_max: result.age_max !== null ? Number(result.age_max) : null,
         education: result.education || null,
+        education_type: result.education_type || null,
         major: result.major || null,
+        work_location: result.work_location || null,
         tenure_min: result.tenure_min !== null ? Number(result.tenure_min) : null,
         tenure_max: result.tenure_max !== null ? Number(result.tenure_max) : null,
+        limit: result.limit !== null && result.limit !== undefined ? Number(result.limit) : null,
+        cert_count_rules: Array.isArray(result.cert_count_rules) ? result.cert_count_rules : null,
         explanation: result.explanation || ''
       };
     } else {
