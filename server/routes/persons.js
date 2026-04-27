@@ -49,7 +49,12 @@ router.get('/', async (req, res) => {
       }
       if (person.certificate_columns) {
         try {
-          person.certificate_columns = JSON.parse(person.certificate_columns);
+          // 检查是否已经是对象
+          if (typeof person.certificate_columns === 'object') {
+            // 已经是对象，不需要解析
+          } else {
+            person.certificate_columns = JSON.parse(person.certificate_columns);
+          }
         } catch (e) {
           person.certificate_columns = {};
         }
@@ -59,7 +64,7 @@ router.get('/', async (req, res) => {
         certificates: certsByPersonId[person.id] || []
       };
     });
-    
+
     res.json(personsWithCertificates);
   } catch (error) {
     console.error('Get persons error:', error);
@@ -104,7 +109,12 @@ router.get('/dataset/:datasetId', async (req, res) => {
       }
       if (person.certificate_columns) {
         try {
-          person.certificate_columns = JSON.parse(person.certificate_columns);
+          // 检查是否已经是对象
+          if (typeof person.certificate_columns === 'object') {
+            // 已经是对象，不需要解析
+          } else {
+            person.certificate_columns = JSON.parse(person.certificate_columns);
+          }
         } catch (e) {
           person.certificate_columns = {};
         }
@@ -139,7 +149,12 @@ router.get('/:id', async (req, res) => {
     }
     if (person.certificate_columns) {
       try {
-        person.certificate_columns = JSON.parse(person.certificate_columns);
+        // 检查是否已经是对象
+        if (typeof person.certificate_columns === 'object') {
+          // 已经是对象，不需要解析
+        } else {
+          person.certificate_columns = JSON.parse(person.certificate_columns);
+        }
       } catch (e) {
         person.certificate_columns = {};
       }
